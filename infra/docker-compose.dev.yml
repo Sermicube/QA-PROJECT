@@ -2,6 +2,7 @@ services:
   backend:
     build:
       context: ../backend
+      dockerfile: Dockerfile.dev-minimal
     env_file: ../.env
     volumes:
       - ../backend:/app

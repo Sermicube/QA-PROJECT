@@ -30,7 +30,7 @@ class CertificationRepository:
             description=description,
         )
         self._session.add(cert)
-        # abrir el primer stage_event
+        await self._session.flush()  # genera cert.id y cert.stage antes del StageEvent
         event = StageEvent(certification_id=cert.id, stage=cert.stage)
         self._session.add(event)
         await self._session.commit()

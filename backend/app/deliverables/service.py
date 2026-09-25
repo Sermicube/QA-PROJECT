@@ -15,10 +15,10 @@ class DeliverableService:
     def __init__(self, repo: DeliverableRepository) -> None:
         self._repo = repo
 
-    async def generate_all(self, cert_id: uuid.UUID) -> str:
+    async def generate_all(self, cert_id: uuid.UUID, user_id_str: str | None = None) -> str:
         """Encola la tarea de generación. Devuelve task_id."""
         from app.deliverables.tasks import generate_deliverables as celery_task
-        task = celery_task.delay(str(cert_id))
+        task = celery_task.delay(str(cert_id), user_id_str)
         return task.id
 
     async def get_deliverables(self, cert_id: uuid.UUID) -> list[Deliverable]:

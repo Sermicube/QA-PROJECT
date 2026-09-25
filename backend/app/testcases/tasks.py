@@ -8,11 +8,11 @@ from app.core.celery_app import celery_app
 
 
 @celery_app.task(bind=True, name="testcases.generate")
-def generate_cases(self: object, certification_id_str: str) -> dict:
-    return asyncio.run(_generate(certification_id_str))
+def generate_cases(self: object, certification_id_str: str, user_id_str: str | None = None) -> dict:
+    return asyncio.run(_generate(certification_id_str, user_id_str))
 
 
-async def _generate(certification_id_str: str) -> dict:
+async def _generate(certification_id_str: str, user_id_str: str | None = None) -> dict:
     import json
     import re
     from pathlib import Path
@@ -20,7 +20,7 @@ async def _generate(certification_id_str: str) -> dict:
     from app.context.repository import ContextRepository
     from app.context.service import ContextService
     from app.core.db import async_session_factory
-    from app.llm.factory import get_provider
+    from app.llm.factory import get_provider, get_provider_for_user
     from app.llm.pii_guard import PIIGuard
     from app.llm.provider import Message, LLMProvider
     from app.testcases.repository import TestCaseRepository
@@ -28,7 +28,7 @@ async def _generate(certification_id_str: str) -> dict:
 
     cert_id = uuid.UUID(certification_id_str)
     pii_guard = PIIGuard()
-    llm = get_provider()
+    llm = (await get_provider_for_user(user_id_str) if user_id_str else get_provider())
     assert isinstance(llm, LLMProvider)  # type: ignore[misc]
 
     prompt_path = Path(__file__).parent.parent / "llm" / "prompts" / "generate_cases.v1.md"

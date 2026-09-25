@@ -8,11 +8,11 @@ from app.core.celery_app import celery_app
 
 
 @celery_app.task(bind=True, name="deliverables.generate")
-def generate_deliverables(self: object, cert_id_str: str) -> dict:
-    return asyncio.run(_generate(cert_id_str))
+def generate_deliverables(self: object, cert_id_str: str, user_id_str: str | None = None) -> dict:
+    return asyncio.run(_generate(cert_id_str, user_id_str))
 
 
-async def _generate(cert_id_str: str) -> dict:
+async def _generate(cert_id_str: str, user_id_str: str | None = None) -> dict:
     from pathlib import Path
 
     from app.certifications.models import Certification

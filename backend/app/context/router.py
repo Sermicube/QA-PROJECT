@@ -153,14 +153,14 @@ async def check_completeness(
 )
 async def analyze_context(
     cert_id: uuid.UUID,
-    _user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     svc: ContextService = Depends(_svc),
 ) -> AnalyzeOut:
     # Primero correr análisis local (rápido, sin LLM)
     await svc.run_local_ambiguity_scan(cert_id)
     # Lanzar tarea Celery para análisis LLM
     from app.context.tasks import analyze_context as celery_task
-    task = celery_task.delay(str(cert_id))
+    task = celery_task.delay(str(cert_id), str(current_user.id))
     return AnalyzeOut(task_id=task.id)
 
 

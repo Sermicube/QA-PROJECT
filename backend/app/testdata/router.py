@@ -134,10 +134,10 @@ async def confirm_mapping(
 )
 async def suggest_conditions(
     tc_id: uuid.UUID,
-    _user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> SuggestConditionsOut:
     from app.testdata.tasks import suggest_conditions as celery_task
-    task = celery_task.delay(str(tc_id))
+    task = celery_task.delay(str(tc_id), str(current_user.id))
     return SuggestConditionsOut(task_id=task.id)
 
 

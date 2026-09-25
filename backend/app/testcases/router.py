@@ -186,10 +186,10 @@ async def import_testcases(
 )
 async def generate_testcases(
     cert_id: uuid.UUID,
-    _user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> GenerateOut:
     from app.testcases.tasks import generate_cases as celery_task
-    task = celery_task.delay(str(cert_id))
+    task = celery_task.delay(str(cert_id), str(current_user.id))
     return GenerateOut(task_id=task.id)
 
 

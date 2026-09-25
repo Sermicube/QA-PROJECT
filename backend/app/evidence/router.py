@@ -51,7 +51,7 @@ async def upload_evidence(
         raise HTTPException(status_code=400, detail=str(e))
 
     from app.evidence.tasks import validate_ocr as ocr_task
-    task = ocr_task.delay(str(ev.id))
+    task = ocr_task.delay(str(ev.id), str(current_user.id))
     return OcrTaskOut(task_id=task.id, evidence_id=ev.id)
 
 

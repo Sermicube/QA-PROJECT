@@ -39,10 +39,10 @@ def _repo(session: AsyncSession = Depends(get_session)) -> DeliverableRepository
 )
 async def generate_deliverables(
     cert_id: uuid.UUID,
-    _user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     svc: DeliverableService = Depends(_svc),
 ) -> GenerateDeliverablesOut:
-    task_id = await svc.generate_all(cert_id)
+    task_id = await svc.generate_all(cert_id, str(current_user.id))
     return GenerateDeliverablesOut(task_id=task_id)
 
 

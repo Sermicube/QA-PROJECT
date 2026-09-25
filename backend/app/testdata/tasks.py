@@ -8,16 +8,16 @@ from app.core.celery_app import celery_app
 
 
 @celery_app.task(bind=True, name="testdata.suggest_conditions")
-def suggest_conditions(self: object, test_case_id_str: str) -> dict:
-    return asyncio.run(_suggest_conditions(test_case_id_str))
+def suggest_conditions(self: object, test_case_id_str: str, user_id_str: str | None = None) -> dict:
+    return asyncio.run(_suggest_conditions(test_case_id_str, user_id_str))
 
 
 @celery_app.task(bind=True, name="testdata.suggest_mapping_llm")
-def suggest_mapping_llm(self: object, base_id_str: str) -> dict:
-    return asyncio.run(_suggest_mapping_llm(base_id_str))
+def suggest_mapping_llm(self: object, base_id_str: str, user_id_str: str | None = None) -> dict:
+    return asyncio.run(_suggest_mapping_llm(base_id_str, user_id_str))
 
 
-async def _suggest_conditions(test_case_id_str: str) -> dict:
+async def _suggest_conditions(test_case_id_str: str, user_id_str: str | None = None) -> dict:
     """LLM sugiere condiciones DSL a partir del nombre + criterios del caso.
 
     SEGURIDAD: nunca se envían datos de la base de usuarios al LLM.
@@ -31,7 +31,7 @@ async def _suggest_conditions(test_case_id_str: str) -> dict:
     from app.context.models import AcceptanceCriterion
     from app.context.repository import ContextRepository
     from app.core.db import async_session_factory
-    from app.llm.factory import get_provider
+    from app.llm.factory import get_provider, get_provider_for_user
     from app.llm.pii_guard import PIIGuard
     from app.llm.provider import Message
     from app.testcases.repository import TestCaseRepository
@@ -40,7 +40,7 @@ async def _suggest_conditions(test_case_id_str: str) -> dict:
 
     tc_id = uuid.UUID(test_case_id_str)
     pii_guard = PIIGuard()
-    llm = get_provider()
+    llm = (await get_provider_for_user(user_id_str) if user_id_str else get_provider())
 
     prompt_path = Path(__file__).parent.parent / "llm" / "prompts" / "suggest_conditions.v1.md"
     system = prompt_path.read_text(encoding="utf-8")
@@ -110,7 +110,7 @@ async def _suggest_conditions(test_case_id_str: str) -> dict:
     return {"conditions_suggested": 0}
 
 
-async def _suggest_mapping_llm(base_id_str: str) -> dict:
+async def _suggest_mapping_llm(base_id_str: str, user_id_str: str | None = None) -> dict:
     """LLM sugiere mapeo a partir de nombres de columna y tipos detectados.
 
     SEGURIDAD: nunca se envían valores de filas al LLM. Solo nombres y tipos.
@@ -120,13 +120,13 @@ async def _suggest_mapping_llm(base_id_str: str) -> dict:
     from pathlib import Path
 
     from app.core.db import async_session_factory
-    from app.llm.factory import get_provider
+    from app.llm.factory import get_provider, get_provider_for_user
     from app.llm.provider import Message
     from app.testdata.domain.loader import load_base, detect_column_types
     from app.testdata.repository import TestDataRepository
 
     base_id = uuid.UUID(base_id_str)
-    llm = get_provider()
+    llm = (await get_provider_for_user(user_id_str) if user_id_str else get_provider())
 
     prompt_path = Path(__file__).parent.parent / "llm" / "prompts" / "suggest_mapping.v1.md"
     system = prompt_path.read_text(encoding="utf-8")

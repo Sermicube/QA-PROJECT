@@ -8,12 +8,12 @@ from app.core.celery_app import celery_app
 
 
 @celery_app.task(bind=True, name="context.analyze")
-def analyze_context(self: object, certification_id_str: str) -> dict:
+def analyze_context(self: object, certification_id_str: str, user_id_str: str | None = None) -> dict:
     """Extrae criterios y detecta ambigüedades semánticas vía LLM."""
-    return asyncio.run(_analyze(certification_id_str))
+    return asyncio.run(_analyze(certification_id_str, user_id_str))
 
 
-async def _analyze(certification_id_str: str) -> dict:
+async def _analyze(certification_id_str: str, user_id_str: str | None = None) -> dict:
     import json
 
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,13 +22,13 @@ async def _analyze(certification_id_str: str) -> dict:
     from app.context.service import ContextService
     from app.core.db import async_session_factory
     from app.core.config import settings
-    from app.llm.factory import get_provider
+    from app.llm.factory import get_provider, get_provider_for_user
     from app.llm.pii_guard import PIIGuard
     from app.llm.provider import Message
 
     cert_id = uuid.UUID(certification_id_str)
     pii_guard = PIIGuard()
-    llm = get_provider()
+    llm = (await get_provider_for_user(user_id_str) if user_id_str else get_provider())
 
     async with async_session_factory() as session:
         repo = ContextRepository(session)

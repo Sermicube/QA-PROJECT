@@ -8,9 +8,9 @@ from app.llm.provider import Message
 
 
 class AnthropicProvider:
-    def __init__(self) -> None:
-        self._client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
-        self._model = settings.ANTHROPIC_MODEL
+    def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
+        self._client = AsyncAnthropic(api_key=api_key or settings.ANTHROPIC_API_KEY)
+        self._model = model or settings.ANTHROPIC_MODEL
 
     async def complete(
         self,

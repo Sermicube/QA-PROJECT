@@ -8,11 +8,11 @@ from app.core.celery_app import celery_app
 
 
 @celery_app.task(bind=True, name="evidence.validate_ocr")
-def validate_ocr(self: object, evidence_id_str: str) -> dict:
-    return asyncio.run(_validate_ocr(evidence_id_str))
+def validate_ocr(self: object, evidence_id_str: str, user_id_str: str | None = None) -> dict:
+    return asyncio.run(_validate_ocr(evidence_id_str, user_id_str))
 
 
-async def _validate_ocr(evidence_id_str: str) -> dict:
+async def _validate_ocr(evidence_id_str: str, user_id_str: str | None = None) -> dict:
     from app.core.db import async_session_factory
     from app.evidence.domain.ocr import validate_screenshot
     from app.evidence.repository import EvidenceRepository

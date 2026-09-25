@@ -8,9 +8,9 @@ from app.llm.provider import Message
 
 
 class OllamaProvider:
-    def __init__(self) -> None:
-        self._base_url = settings.OLLAMA_BASE_URL.rstrip("/")
-        self._model = settings.OLLAMA_MODEL
+    def __init__(self, base_url: str | None = None, model: str | None = None) -> None:
+        self._base_url = (base_url or settings.OLLAMA_BASE_URL).rstrip("/")
+        self._model = model or settings.OLLAMA_MODEL
 
     async def complete(
         self,

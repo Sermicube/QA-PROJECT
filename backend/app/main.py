@@ -14,9 +14,9 @@ from app.users.router import router as users_router
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     configure_logging(settings.APP_ENV)
     log = structlog.get_logger()
-    await log.ainfo("startup", env=settings.APP_ENV)
+    log.info("startup", env=settings.APP_ENV)
     yield
-    await log.ainfo("shutdown")
+    log.info("shutdown")
 
 
 app = FastAPI(

@@ -7,6 +7,8 @@ from fastapi import FastAPI
 from app.core.config import settings
 from app.core.logging import configure_logging
 from app.certifications.router import router as certifications_router
+from app.context.router import router as context_router
+from app.testcases.router import router as testcases_router
 from app.users.router import router as users_router
 
 
@@ -30,6 +32,8 @@ app = FastAPI(
 
 app.include_router(users_router)
 app.include_router(certifications_router)
+app.include_router(context_router)
+app.include_router(testcases_router)
 
 
 @app.get("/api/health")

@@ -8,6 +8,8 @@ from app.core.config import settings
 from app.core.db import Base
 import app.users.models  # noqa: F401 — registers User with Base.metadata
 import app.certifications.models  # noqa: F401 — registers Certification + StageEvent
+import app.context.models  # noqa: F401 — registers ContextSource, AcceptanceCriterion, Ambiguity
+import app.testcases.models  # noqa: F401 — registers TestCase, TestCaseCriterion
 
 config = context.config
 

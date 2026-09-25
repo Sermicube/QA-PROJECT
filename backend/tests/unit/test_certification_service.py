@@ -1,4 +1,4 @@
-"""Tests unitarios de CertificationService usando un repositorio falso."""
+﻿"""Tests unitarios de CertificationService usando un repositorio falso."""
 
 import uuid
 from datetime import datetime, UTC
@@ -12,7 +12,7 @@ from app.certifications.schemas import CertificationCreate, CertificationUpdate
 from app.certifications.service import CertificationError, CertificationService
 
 
-# ── repositorio falso ─────────────────────────────────────────────────────────
+# â”€â”€ repositorio falso â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _FakeCertRepo:
     def __init__(self) -> None:
@@ -36,7 +36,7 @@ class _FakeCertRepo:
             module=module,
             title=title,
             description=description,
-            stage="requirement",
+            stage="context",
             status="active",
             closed_at=None,
             created_at=now,
@@ -46,7 +46,7 @@ class _FakeCertRepo:
             StageEvent(
                 id=uuid.uuid4(),
                 certification_id=cert.id,
-                stage="requirement",
+                stage="context",
                 started_at=now,
                 ended_at=None,
             )
@@ -123,13 +123,13 @@ _CREATE_DATA = CertificationCreate(
 )
 
 
-# ── create ────────────────────────────────────────────────────────────────────
+# â”€â”€ create â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 async def test_create_returns_certification_in_first_stage() -> None:
     service, _ = _make_service()
     cert = await service.create(_OWNER, _CREATE_DATA)
-    assert cert.stage == "requirement"
+    assert cert.stage == "context"
     assert cert.status == "active"
     assert cert.type == "brecha"
 
@@ -139,7 +139,7 @@ async def test_create_opens_stage_event() -> None:
     service, _ = _make_service()
     cert = await service.create(_OWNER, _CREATE_DATA)
     assert len(cert.stage_events) == 1
-    assert cert.stage_events[0].stage == "requirement"
+    assert cert.stage_events[0].stage == "context"
     assert cert.stage_events[0].ended_at is None
 
 
@@ -154,7 +154,7 @@ async def test_create_bug_type() -> None:
     assert cert.external_code == "IM-9142664"
 
 
-# ── get ───────────────────────────────────────────────────────────────────────
+# â”€â”€ get â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 async def test_get_returns_own_certification() -> None:
@@ -173,7 +173,7 @@ async def test_get_other_owner_raises() -> None:
         await service.get(cert.id, other)
 
 
-# ── list ──────────────────────────────────────────────────────────────────────
+# â”€â”€ list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 async def test_list_returns_only_owner_certifications() -> None:
@@ -195,13 +195,13 @@ async def test_list_filters_by_type() -> None:
     assert len(bugs) == 1 and bugs[0].type == "bug"
 
 
-# ── change_stage ──────────────────────────────────────────────────────────────
+# â”€â”€ change_stage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 async def test_advance_stage_moves_forward() -> None:
     service, _ = _make_service()
     cert = await service.create(_OWNER, _CREATE_DATA)
-    assert cert.stage == "requirement"
+    assert cert.stage == "context"
     cert = await service.change_stage(cert.id, _OWNER, "forward")
     assert cert.stage == "ambiguities"
 
@@ -212,7 +212,7 @@ async def test_advance_stage_creates_new_event() -> None:
     cert = await service.create(_OWNER, _CREATE_DATA)
     cert = await service.change_stage(cert.id, _OWNER, "forward")
     stages = [e.stage for e in cert.stage_events]
-    assert "requirement" in stages
+    assert "context" in stages
     assert "ambiguities" in stages
 
 
@@ -221,7 +221,7 @@ async def test_advance_stage_closes_previous_event() -> None:
     service, _ = _make_service()
     cert = await service.create(_OWNER, _CREATE_DATA)
     cert = await service.change_stage(cert.id, _OWNER, "forward")
-    req_event = next(e for e in cert.stage_events if e.stage == "requirement")
+    req_event = next(e for e in cert.stage_events if e.stage == "context")
     assert req_event.ended_at is not None
 
 
@@ -229,9 +229,9 @@ async def test_advance_stage_closes_previous_event() -> None:
 async def test_go_back_stage_moves_backward() -> None:
     service, _ = _make_service()
     cert = await service.create(_OWNER, _CREATE_DATA)
-    cert = await service.change_stage(cert.id, _OWNER, "forward")  # → ambiguities
-    cert = await service.change_stage(cert.id, _OWNER, "back")     # → requirement
-    assert cert.stage == "requirement"
+    cert = await service.change_stage(cert.id, _OWNER, "forward")  # â†’ ambiguities
+    cert = await service.change_stage(cert.id, _OWNER, "back")     # â†’ requirement
+    assert cert.stage == "context"
 
 
 @pytest.mark.asyncio
@@ -250,7 +250,7 @@ async def test_advance_from_last_stage_raises() -> None:
 async def test_go_back_from_first_stage_raises() -> None:
     service, _ = _make_service()
     cert = await service.create(_OWNER, _CREATE_DATA)
-    assert cert.stage == "requirement"
+    assert cert.stage == "context"
     with pytest.raises(CertificationError):
         await service.change_stage(cert.id, _OWNER, "back")
 
@@ -265,11 +265,11 @@ async def test_closed_certification_sets_closed_at() -> None:
     assert cert.closed_at is not None
 
 
-# ── update ────────────────────────────────────────────────────────────────────
+# â”€â”€ update â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 async def test_update_changes_title() -> None:
     service, _ = _make_service()
     cert = await service.create(_OWNER, _CREATE_DATA)
-    updated = await service.update(cert.id, _OWNER, CertificationUpdate(title="Nuevo título"))
-    assert updated.title == "Nuevo título"
+    updated = await service.update(cert.id, _OWNER, CertificationUpdate(title="Nuevo tÃ­tulo"))
+    assert updated.title == "Nuevo tÃ­tulo"

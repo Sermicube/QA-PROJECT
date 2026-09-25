@@ -168,9 +168,45 @@ def _l08(cases: list[CaseInput], criterion_ids: list[str]) -> dict[str, list[Lin
     return results
 
 
+def _l09(cases: list[CaseInput], glossary: list[dict]) -> dict[str, list[LintIssue]]:
+    """L09 (RF-63): detecta términos del glosario usados con nombre incorrecto.
+
+    glossary: lista de {name, synonyms} aportada por KnowledgeService.
+    Solo actúa si el glosario tiene al menos un término.
+    """
+    results: dict[str, list[LintIssue]] = {c.code: [] for c in cases}
+    if not glossary:
+        return results
+
+    for entry in glossary:
+        canonical = entry.get("name", "").lower().strip()
+        synonyms_raw: list[str] = entry.get("synonyms", []) or []
+        synonyms = [s.lower().strip() for s in synonyms_raw if s.strip()]
+        if not canonical or not synonyms:
+            continue
+
+        # Si algún sinónimo aparece en el caso pero el nombre canónico no, marcar
+        for case in cases:
+            full_text = (
+                case.name + " " + " ".join(case.steps) + " " + case.expected_result
+            ).lower()
+            for syn in synonyms:
+                if re.search(r"\b" + re.escape(syn) + r"\b", full_text):
+                    if not re.search(r"\b" + re.escape(canonical) + r"\b", full_text):
+                        results[case.code].append(LintIssue(
+                            "L09",
+                            f'Se usa "{syn}" pero el término canónico del glosario es "{entry["name"]}". '
+                            "Usar terminología consistente.",
+                            severity="warning",
+                        ))
+                        break  # un aviso por término por caso es suficiente
+    return results
+
+
 def lint_batch(
     cases: list[CaseInput],
     criterion_ids: list[str] | None = None,
+    glossary: list[dict] | None = None,
 ) -> dict[str, list[LintIssue]]:
     """Aplica todas las reglas al lote completo. Devuelve {case_code: [issues]}."""
     results: dict[str, list[LintIssue]] = {}
@@ -179,9 +215,11 @@ def lint_batch(
 
     l07 = _l07(cases)
     l08 = _l08(cases, criterion_ids or [])
+    l09 = _l09(cases, glossary or [])
     for code in results:
         results[code].extend(l07.get(code, []))
         results[code].extend(l08.get(code, []))
+        results[code].extend(l09.get(code, []))
 
     return results
 

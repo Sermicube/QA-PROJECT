@@ -102,4 +102,8 @@ async def change_stage(
         cert = await service.change_stage(cert_id, owner_id, body.direction)
     except CertificationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    # RF-60: al cerrar, ingestar al Mapa Vivo en background
+    if cert.stage == "closed":
+        from app.knowledge.tasks import ingest_certification as knowledge_task
+        knowledge_task.delay(str(cert_id), str(owner_id))
     return CertificationRead.model_validate(cert)

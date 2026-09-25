@@ -17,7 +17,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     RETENTION_DAYS: int = 30
     MAX_UPLOAD_MB: int = 20
-    NEO4J_URL: str = ""
+    NEO4J_URI: str = "bolt://neo4j:7687"
+    NEO4J_USER: str = "neo4j"
+    NEO4J_PASSWORD: str = "copiloto1234"
+    NEO4J_ENABLED: bool = True
 
     @property
     def is_development(self) -> bool:

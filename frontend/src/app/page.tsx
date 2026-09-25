@@ -47,6 +47,9 @@ export default function DashboardPage() {
             <Link href="/metrics">
               <Button variant="ghost" size="sm">Métricas</Button>
             </Link>
+            <Link href="/knowledge">
+              <Button variant="ghost" size="sm">Mapa Vivo</Button>
+            </Link>
             <Link href="/settings">
               <Button variant="ghost" size="sm">Configuración</Button>
             </Link>

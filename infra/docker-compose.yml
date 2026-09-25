@@ -80,8 +80,20 @@ services:
       retries: 5
     restart: unless-stopped
 
+  neo4j:
+    image: neo4j:5
+    environment:
+      NEO4J_AUTH: neo4j/copiloto1234
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+    restart: unless-stopped
+
 volumes:
   pgdata:
   files:
   redis_data:
   caddy_data:
+  neo4j_data:

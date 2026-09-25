@@ -2,7 +2,7 @@
 
 ## Qué es este proyecto
 
-Herramienta web que acompaña al analista QA en el ciclo de certificación de Beyond Health (sistema de salud desarrollado por Sonda). Recibe el documento de requerimiento y una base de usuarios de prueba; detecta ambigüedades, redacta casos de prueba claros, asigna automáticamente usuarios de prueba a cada caso y genera los entregables (formato CO-FR-VRA-03, nota TFS, correo de certificación). Cada certificación alimenta un grafo de conocimiento del sistema ("Mapa Vivo").
+Herramienta web que acompaña al analista QA en el ciclo de certificación de Beyond Health (sistema de salud desarrollado por Sonda). Recibe el contexto de lo que se va a certificar (descripción escrita por el analista, documento de requerimiento, o ambos) y una base de usuarios de prueba; detecta ambigüedades, redacta casos de prueba claros, asigna automáticamente usuarios de prueba a cada caso y genera los entregables (formato CO-FR-VRA-03, nota TFS, correo de certificación). Cada certificación alimenta un grafo de conocimiento del sistema ("Mapa Vivo").
 
 El sistema funciona **aparte de la red privada de Sonda**: trabaja con archivos que el analista sube y devuelve archivos. No se conecta a Beyond Health, TFS ni Aranda en el MVP.
 
@@ -12,7 +12,8 @@ El sistema funciona **aparte de la red privada de Sonda**: trabaja con archivos 
 
 - Los datos de afiliados son datos de salud (Ley 1581 de 2012). **Nunca** se envían datos de afiliados (cédulas, nombres, contratos, fechas personales) a un modelo de IA.
 - El filtrado y la asignación de usuarios de prueba son **locales y determinísticos** (pandas/SQL), nunca decididos por el LLM.
-- Al LLM solo llegan: texto de requerimientos, condiciones de los casos y nombres de columnas.
+- Al LLM solo llegan: texto del contexto (requerimiento, descripción del analista, reporte del incidente), condiciones de los casos y nombres de columnas.
+- Las descripciones y reportes de incidentes pueden traer cédulas o contratos: siempre pasan por `PIIGuard` y se enmascaran antes de llegar al LLM.
 - Durante el desarrollo se usan **solo datos sintéticos** en `fixtures/`. Nunca subir al repositorio documentos o bases reales.
 - Secretos (API keys) solo en variables de entorno (`.env`, excluido de git). Nunca en el código.
 - `.gitignore` debe excluir `data/`, `uploads/`, `.env`, `*.xlsx` fuera de `fixtures/` y `templates/`.
@@ -35,7 +36,7 @@ Monolito modular. Carpetas del backend:
 backend/app/
   core/          # config, seguridad, logging, sesión de BD
   llm/           # capa de proveedor intercambiable
-  requirements/  # Módulo 1: análisis de requerimiento y ambigüedades
+  context/       # Módulo 1: fuentes del contexto (descripción, documento, reporte) y ambigüedades
   testcases/     # Módulo 1: redacción de casos con plantilla estricta
   testdata/      # Módulo 2: carga de bases, mapeo de columnas, asignación
   evidence/      # Módulo 2: pantallazos + validación OCR
@@ -55,8 +56,12 @@ El piloto lo usa un solo analista, pero el modelo de datos incluye desde el inic
 ## Dominio
 
 - **Certificación:** proceso de validar un bug corregido o una "Brecha" (cambio funcional). Casi una por día.
-- **Tipos:** bug (viene de Aranda, se registra en TFS) y brecha (viene de un documento de requerimiento).
-- **Documento de requerimiento:** casi siempre en el mismo formato (tipo "Modelo Análisis Producto Solicitud de Cambio").
+- **Tipos:** bug (viene de Aranda, se registra en TFS) y brecha (cambio funcional).
+- **Contexto de la certificación:** tres fuentes combinables, al menos una obligatoria:
+  - **Descripción del analista** (siempre disponible; formulario guiado). En bugs es la fuente principal: qué sucedía, causa o diagnóstico, corrección aplicada, qué se va a probar y resultado esperado.
+  - **Documento de requerimiento** (opcional; habitual en brechas). Casi siempre en el mismo formato (tipo "Modelo Análisis Producto Solicitud de Cambio").
+  - **Reporte del incidente** (opcional; texto del caso Aranda o diagnóstico del desarrollador).
+- **Los bugs no tienen documento de requerimiento.** Nunca asumir que existe uno: todo el flujo debe funcionar solo con la descripción del analista.
 - **Módulo piloto:** Novedades de afiliación (exclusión de beneficiario, terminación de contrato, cambio de fecha inicio IPS).
 - **Base de usuarios:** Excel o txt (a veces delimitado por `|`). Las columnas **varían según el caso**, por eso existe el mapeo de columnas.
 - **Evidencia:** cada pantallazo debe mostrar la **hora del sistema y la URL**.
@@ -74,11 +79,12 @@ El piloto lo usa un solo analista, pero el modelo de datos incluye desde el inic
 
 ## Detector de ambigüedades
 
-Marcar en el requerimiento:
+Marcar en todas las fuentes del contexto:
 - Comparaciones sin frontera definida ("mayor", "anterior", "hasta", "a partir de") sin aclarar el caso igual.
 - Unidades implícitas ("días" sin decir hábiles o calendario).
 - Ramas faltantes (qué pasa si la condición no se cumple).
-- Contradicciones entre secciones del documento.
+- Contradicciones entre secciones o entre fuentes (ej. descripción del analista vs. documento).
+- Contexto incompleto: en descripciones del analista, avisar lo que falta para probar (ej. sin resultado esperado). Son sugerencias, no bloquean.
 
 Salida: lista de preguntas. La interpretación acordada queda registrada en la certificación.
 
@@ -98,7 +104,7 @@ Registrar por certificación: tiempo por etapa, tiempo buscando datos, % de caso
 ## Hoja de ruta
 
 1. Mes 1: preparación, línea base de métricas.
-2. Meses 2–3: Módulo 1 (requerimiento, ambigüedades, casos).
+2. Meses 2–3: Módulo 1 (contexto, ambigüedades, casos).
 3. Meses 4–5: Módulo 2 (bases, mapeo, asignación, plantilla, OCR).
 4. Mes 6: entregables automáticos + piloto individual.
 5. Meses 7–8: Mapa Vivo (Neo4j) + sugerencia de regresión + segundo módulo.

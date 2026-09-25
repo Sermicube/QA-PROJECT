@@ -1,13 +1,13 @@
 # Especificación Técnica — Copiloto de Certificación QA (Beyond Health)
 
-Versión 1.0 — Documento de referencia para el desarrollo. Complementa a `CLAUDE.md`.
+Versión 1.1 — Documento de referencia para el desarrollo. Complementa a `CLAUDE.md`.
 Si hay conflicto entre ambos, prevalecen las reglas de seguridad de `CLAUDE.md`.
 
 ---
 
 ## 1. Visión
 
-Herramienta web que reduce el tiempo y el retrabajo del ciclo de certificación QA de Beyond Health. Toma un documento de requerimiento y una base de usuarios de prueba, y produce: preguntas sobre ambigüedades, casos de prueba claros, asignación de usuarios de prueba a cada caso, validación de evidencias y entregables listos (CO-FR-VRA-03, nota TFS, correo). Cada certificación alimenta un grafo de conocimiento del sistema (Mapa Vivo) y registra métricas.
+Herramienta web que reduce el tiempo y el retrabajo del ciclo de certificación QA de Beyond Health. Toma el contexto de lo que se va a certificar —una descripción escrita por el analista, un documento de requerimiento, o ambos— y una base de usuarios de prueba, y produce: preguntas sobre ambigüedades, casos de prueba claros, asignación de usuarios de prueba a cada caso, validación de evidencias y entregables listos (CO-FR-VRA-03, nota TFS, correo). Cada certificación alimenta un grafo de conocimiento del sistema (Mapa Vivo) y registra métricas.
 
 ### 1.1 Objetivos medibles
 
@@ -47,16 +47,31 @@ Cada requerimiento tiene un identificador `RF-XX` que debe citarse en los commit
 ### 2.1 Certificaciones
 
 - **RF-01** Crear una certificación con: tipo (`bug` | `brecha`), código externo (ej. IM-9142664, número de bug TFS, número de brecha), módulo de Beyond Health, título y descripción corta.
-- **RF-02** Una certificación avanza por etapas: `requirement` → `ambiguities` → `testcases` → `testdata` → `execution` → `deliverables` → `closed`. Se puede volver a etapas anteriores.
+- **RF-02** Una certificación avanza por etapas: `context` → `ambiguities` → `testcases` → `testdata` → `execution` → `deliverables` → `closed`. Se puede volver a etapas anteriores.
 - **RF-03** Listar, filtrar (tipo, módulo, estado, fecha) y buscar certificaciones.
 - **RF-04** Registrar automáticamente el inicio y fin de cada etapa (métricas).
 
-### 2.2 Módulo 1 — Requerimiento y casos de prueba
+### 2.2 Módulo 1 — Contexto de la certificación y casos de prueba
 
-- **RF-10** Subir documento de requerimiento en `.docx` o `.pdf`. Para bugs, permitir pegar texto del caso Aranda en lugar de documento.
-- **RF-11** Extraer el texto por secciones, conservando títulos y numeración de pasos.
-- **RF-12** Extraer criterios de aceptación estructurados (id, texto, sección de origen).
-- **RF-13** Detectar ambigüedades (ver §6.3). Cada hallazgo tiene: tipo, fragmento, ubicación, explicación y pregunta sugerida.
+El contexto de una certificación puede venir de **tres fuentes, combinables entre sí**. Debe existir al menos una:
+
+| Fuente | Cuándo se usa |
+|---|---|
+| Descripción del analista | Siempre disponible. Es la fuente principal en bugs, que no tienen documento de requerimiento |
+| Documento de requerimiento (`.docx`/`.pdf`) | Habitual en brechas |
+| Reporte del incidente (texto pegado del caso Aranda, diagnóstico del desarrollador, changeset) | Habitual en bugs |
+
+- **RF-10** Registrar el contexto con cualquier combinación de las tres fuentes. El sistema no exige documento de requerimiento.
+- **RF-10a** Descripción guiada del analista. Formulario con campos según el tipo:
+  - **Bug:** qué sucedía (comportamiento reportado), causa o diagnóstico, corrección aplicada (changeset/ajuste), qué se va a probar, resultado esperado tras la corrección, alcance fuera de prueba (opcional).
+  - **Brecha:** qué cambia en el sistema, qué se va a probar, resultado esperado, alcance fuera de prueba (opcional).
+  - Todos los campos son texto libre; solo "qué se va a probar" es obligatorio. Admite también un modo de texto libre único para quien prefiera escribir de corrido.
+- **RF-10b** Subir documento de requerimiento en `.docx` o `.pdf` (opcional).
+- **RF-10c** Pegar el reporte del incidente como texto (opcional).
+- **RF-10d** Asistente de completitud: antes de generar casos, el sistema revisa la descripción y señala lo que falta para poder probar (ej. "no se indica el resultado esperado después de la corrección", "no se indica en qué módulo o pantalla se reproduce"). Son sugerencias; el analista puede continuar sin completarlas.
+- **RF-11** Si hay documento, extraer el texto por secciones, conservando títulos y numeración de pasos. La descripción y el reporte se tratan como secciones adicionales con su origen identificado.
+- **RF-12** Extraer criterios de aceptación estructurados (id, texto, fuente de origen) a partir del contexto combinado. En bugs sin documento, los criterios se derivan de "qué se va a probar" y "resultado esperado". Si las fuentes se contradicen (ej. la descripción del analista y el documento), se marca como ambigüedad de tipo `contradiction`.
+- **RF-13** Detectar ambigüedades en todas las fuentes del contexto, incluida la descripción del analista (ver §6.3). Cada hallazgo tiene: tipo, fragmento, ubicación, explicación y pregunta sugerida.
 - **RF-14** El analista registra la resolución de cada ambigüedad (respuesta + quién la dio). Las resoluciones se incluyen como contexto al generar casos.
 - **RF-15** Generar casos de prueba con la plantilla estricta (ver §6.4), cada uno ligado a uno o más criterios.
 - **RF-16** Permitir importar casos ya existentes (pegar texto o Excel) en lugar de generarlos.
@@ -245,7 +260,7 @@ copiloto-certificacion/
       llm/                   # provider.py, anthropic_provider.py, ollama_provider.py, fake_provider.py, prompts/
       users/
       certifications/
-      requirements/
+      context/               # descripción del analista, documento, reporte; ambigüedades
       testcases/
       testdata/
       evidence/
@@ -297,11 +312,21 @@ class LLMProvider(Protocol):
 
 Enfoque híbrido:
 
-1. **Reglas locales** (`requirements/domain/ambiguity_rules.py`): léxico de comparadores ("mayor", "menor", "anterior", "posterior", "hasta", "desde", "a partir de", "superior", "inferior"), unidades de tiempo sin calificador ("días" sin "hábiles"/"calendario"), cuantificadores vagos ("algunos", "según corresponda").
+1. **Reglas locales** (`context/domain/ambiguity_rules.py`): léxico de comparadores ("mayor", "menor", "anterior", "posterior", "hasta", "desde", "a partir de", "superior", "inferior"), unidades de tiempo sin calificador ("días" sin "hábiles"/"calendario"), cuantificadores vagos ("algunos", "según corresponda").
 2. **LLM** para lo semántico: ramas faltantes, contradicciones entre secciones, condiciones sin resultado definido.
 3. Se combinan y deduplican por ubicación.
 
-Tipos: `boundary_undefined`, `implicit_unit`, `missing_branch`, `contradiction`, `vague_term`, `undefined_result`.
+Tipos: `boundary_undefined`, `implicit_unit`, `missing_branch`, `contradiction`, `vague_term`, `undefined_result`, `incomplete_context`.
+
+Se aplica sobre todas las fuentes del contexto. `contradiction` incluye diferencias entre fuentes (descripción vs. documento vs. reporte). `incomplete_context` corresponde al asistente de completitud (RF-10d) y se usa sobre todo en bugs descritos por el analista.
+
+### 6.3.1 Contexto sin documento (bugs)
+
+Cuando no hay documento de requerimiento, el flujo es igual, pero el insumo es la descripción guiada más el reporte del incidente:
+1. Se arma un contexto estructurado con los campos de RF-10a.
+2. Se derivan criterios: uno por cada comportamiento a validar en "qué se va a probar", con su resultado esperado.
+3. Se sugieren, además, casos de no regresión cercanos al bug (ej. el escenario que antes fallaba y un escenario vecino que siempre funcionó), marcados como sugerencia.
+4. **Privacidad:** los reportes de Aranda y las descripciones pueden contener cédulas, contratos o nombres de afiliados. Pasan por `PIIGuard` antes de llegar al LLM; los datos detectados se enmascaran (`[DOC_1]`, `[CONTRATO_1]`) y se restituyen localmente en la respuesta si hace falta.
 
 ### 6.4 Plantilla y linter de casos
 
@@ -428,8 +453,9 @@ Todas las tablas tienen `id` (UUID), `created_at`, `updated_at`.
 | `users` | email, full_name, password_hash, role, is_active |
 | `certifications` | owner_id, type, external_code, module, title, description, stage, status, closed_at |
 | `stage_events` | certification_id, stage, started_at, ended_at |
-| `requirement_documents` | certification_id, file_path, file_name, mime_type, extracted_text, sections (JSONB) |
-| `acceptance_criteria` | certification_id, code, text, source_section |
+| `context_sources` | certification_id, kind (`analyst_description` / `requirement_document` / `incident_report`), content (JSONB: campos guiados o texto), file_path, file_name, mime_type, extracted_text, sections (JSONB) |
+| `completeness_findings` | certification_id, field, message, dismissed |
+| `acceptance_criteria` | certification_id, code, text, source_kind, source_section |
 | `ambiguities` | certification_id, type, fragment, location, explanation, question, resolution, resolved_by, resolved_at |
 | `test_cases` | certification_id, code, name, preconditions (JSONB), steps (JSONB), expected_result, boundary, status (draft/approved), lint_results (JSONB), order |
 | `test_case_criteria` | test_case_id, criterion_id |
@@ -463,8 +489,13 @@ Prefijo `/api/v1`. Autenticación con JWT en cookie httpOnly. OpenAPI disponible
 | `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` | Sesión |
 | `GET/POST /certifications`, `GET/PATCH /certifications/{id}` | CRUD |
 | `POST /certifications/{id}/stage` | Cambiar etapa |
-| `POST /certifications/{id}/requirement` | Subir documento o texto |
-| `POST /certifications/{id}/requirement/analyze` | Extraer criterios y ambigüedades (tarea) |
+| `GET /certifications/{id}/context` | Ver todas las fuentes del contexto |
+| `PUT /certifications/{id}/context/description` | Guardar descripción guiada o libre del analista |
+| `POST /certifications/{id}/context/document` | Subir documento de requerimiento |
+| `PUT /certifications/{id}/context/incident-report` | Guardar texto del reporte del incidente |
+| `DELETE /context-sources/{id}` | Quitar una fuente |
+| `POST /certifications/{id}/context/completeness` | Revisar completitud de la descripción |
+| `POST /certifications/{id}/context/analyze` | Extraer criterios y ambigüedades de todas las fuentes (tarea) |
 | `GET /certifications/{id}/criteria` | Criterios |
 | `GET /certifications/{id}/ambiguities`, `PATCH /ambiguities/{id}` | Ver y resolver |
 | `POST /certifications/{id}/testcases/generate` | Generar casos (tarea) |
@@ -518,7 +549,7 @@ Errores con formato uniforme: `{"error": {"code": "...", "message": "...", "deta
 | `/` | Tablero: certificaciones activas, recientes y métricas rápidas |
 | `/certifications/new` | Crear certificación |
 | `/certifications/[id]` | Asistente por etapas con barra de progreso |
-| └ Requerimiento | Subida, vista del texto por secciones, criterios extraídos |
+| └ Contexto | Pestañas para descripción guiada (según tipo bug/brecha), documento y reporte del incidente; avisos de completitud; criterios extraídos con su fuente |
 | └ Ambigüedades | Lista con fragmento resaltado, pregunta, campo de resolución |
 | └ Casos | Tabla editable, resultados del linter en línea, matriz de trazabilidad |
 | └ Datos | Subida de base, mapeo de columnas, condiciones por caso, asignaciones con justificación y suplentes, solicitudes de datos |
@@ -543,6 +574,8 @@ Principios: todo en español, acciones largas con indicador de progreso, botón 
 
 Fixtures sintéticos obligatorios (`scripts/generate_fixtures.py`):
 - Requerimiento de exclusión de beneficiario con ambigüedad de frontera ("mayor" sin aclarar el igual).
+- Bug sin documento: descripción guiada del analista + reporte de incidente sintético que contiene una cédula ficticia (para probar el enmascaramiento).
+- Bug con descripción incompleta (sin resultado esperado) para probar el asistente de completitud.
 - Requerimiento con "días" sin unidad.
 - Base de usuarios de 500 filas con columnas en distintos nombres y delimitador `|`.
 - Pantallazos sintéticos con y sin reloj y URL.
@@ -593,8 +626,12 @@ Cada fase termina con: tests pasando, cobertura cumplida, `docker compose up` fu
 - **Aceptación:** se puede iniciar sesión, crear una certificación y moverla por etapas; tests de `PIIGuard` pasan.
 
 ### Fase 1 — Módulo 1 (requerimiento y casos)
-- RF-10 a RF-19.
-- **Aceptación:** con el fixture de exclusión de beneficiario, el sistema detecta la ambigüedad de frontera, genera casos anterior/igual/posterior con la plantilla estricta, el linter no marca errores en los casos generados y la matriz no tiene criterios sin caso.
+- RF-10 a RF-19 (incluye RF-10a a RF-10d).
+- **Aceptación:**
+  - Brecha con documento: con el fixture de exclusión de beneficiario, el sistema detecta la ambigüedad de frontera, genera casos anterior/igual/posterior con la plantilla estricta, el linter no marca errores y la matriz no tiene criterios sin caso.
+  - Bug sin documento: solo con la descripción guiada y el reporte, el sistema deriva criterios, genera casos y enmascara la cédula antes de llamar al LLM.
+  - Descripción incompleta: el asistente de completitud señala la falta de resultado esperado.
+  - Documento + descripción que se contradicen: se reporta una ambigüedad `contradiction`.
 
 ### Fase 2 — Módulo 2 (datos de prueba)
 - RF-20 a RF-29.

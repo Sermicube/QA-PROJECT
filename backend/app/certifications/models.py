@@ -10,7 +10,7 @@ from app.core.db import Base
 
 # Orden canónico de etapas (RF-02)
 STAGE_ORDER: list[str] = [
-    "requirement",
+    "context",
     "ambiguities",
     "testcases",
     "testdata",

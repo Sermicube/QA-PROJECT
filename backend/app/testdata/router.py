@@ -5,6 +5,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
@@ -103,12 +104,21 @@ async def confirm_mapping(
     current_user: User = Depends(get_current_user),
     svc: TestDataService = Depends(_svc),
 ) -> ColumnMappingOut:
+    # Detectar tipos de columna para enriquecer vocab de domain_fields
+    col_types: dict[str, str] = {}
+    try:
+        preview = await svc.preview_base(base_id)
+        col_types = preview.types
+    except TestDataError:
+        pass  # sin tipos detectados, se usa "text" por defecto
+
     try:
         cm = await svc.confirm_mapping(
             base_id=base_id,
             owner_id=current_user.id,
             module=body.module,
             mapping_dict=body.mapping,
+            col_types=col_types,
         )
     except TestDataError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -136,8 +146,33 @@ async def set_conditions(
     tc_id: uuid.UUID,
     body: CaseConditionsIn,
     _user: User = Depends(get_current_user),
+    svc: TestDataService = Depends(_svc),
     repo: TestDataRepository = Depends(_repo),
 ) -> CaseConditionsOut:
+    # Obtener cert_id del caso
+    from app.testcases.models import TestCase
+    from sqlalchemy import select as sa_select
+    from app.core.db import get_session as _gs
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    # El repo ya tiene la sesión; accedemos directo
+    tc_result = await repo._session.execute(sa_select(TestCase).where(TestCase.id == tc_id))
+    tc = tc_result.scalar_one_or_none()
+    if tc is None:
+        raise HTTPException(status_code=404, detail="Caso de prueba no encontrado")
+
+    # Validar campos contra el mapeo confirmado (si existe)
+    invalid_fields = await svc.validate_conditions_fields(tc.certification_id, body.conditions)
+    if invalid_fields:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": "Las siguientes condiciones usan campos que no están en el mapeo de columnas confirmado para esta certificación.",
+                "invalid_fields": invalid_fields,
+                "hint": "Verificar el mapeo de columnas o ajustar los campos de las condiciones.",
+            },
+        )
+
     cc = await repo.upsert_conditions(
         tc_id=tc_id,
         conditions=body.conditions,

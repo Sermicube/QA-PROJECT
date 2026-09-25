@@ -100,14 +100,46 @@ class TestDataService:
         owner_id: uuid.UUID,
         module: str,
         mapping_dict: dict[str, str | None],
+        col_types: dict[str, str] | None = None,
     ) -> ColumnMapping:
         base = await self._repo.get_base(base_id)
         if base is None:
             raise TestDataError(f"Base {base_id} no encontrada")
         fingerprint = base.header_fingerprint
+
+        # Vocabulario extensible: crear campos de dominio desconocidos (RF-22)
+        col_types = col_types or {}
+        for col_name, field_key in mapping_dict.items():
+            if field_key:
+                detected_type = col_types.get(col_name, "text")
+                await self._repo.get_or_create_domain_field(field_key, module, detected_type)
+
         cm = await self._repo.create_mapping(owner_id, fingerprint, module, mapping_dict)
         await self._repo.set_mapping(base_id, cm.id)
         return cm
+
+    async def validate_conditions_fields(
+        self,
+        cert_id: uuid.UUID,
+        conditions: list[dict],
+    ) -> list[str]:
+        """Devuelve los field keys de las condiciones que no están en el mapeo confirmado.
+
+        Si no hay base con mapeo, devuelve lista vacía (no hay con qué validar).
+        """
+        available = await self._repo.get_available_fields_for_cert(cert_id)
+        if available is None:
+            return []
+        available_keys = {f["key"] for f in available}
+        invalid: list[str] = []
+        for cond in conditions:
+            field = cond.get("field")
+            if field and field not in available_keys:
+                invalid.append(field)
+            other = cond.get("other_field")
+            if other and other not in available_keys:
+                invalid.append(other)
+        return list(dict.fromkeys(invalid))  # deduplicar manteniendo orden
 
     # ── RF-24+25+26+27+28 ────────────────────────────────────────────────────
 
@@ -141,6 +173,14 @@ class TestDataService:
         from app.core.db import async_session_factory
 
         conditions_list = await self._repo.list_conditions_for_cert(cert_id)
+
+        # Verificar que todas las condiciones están confirmadas
+        unconfirmed = [str(cc.test_case_id) for cc in conditions_list if not cc.confirmed]
+        if unconfirmed:
+            raise TestDataError(
+                f"Los siguientes casos tienen condiciones sin confirmar: {', '.join(unconfirmed[:5])}. "
+                "Confirmar las condiciones antes de ejecutar la asignación."
+            )
 
         cases_data: list[dict[str, Any]] = []
         for cc in conditions_list:

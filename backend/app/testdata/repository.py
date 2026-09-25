@@ -107,6 +107,51 @@ class TestDataRepository:
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_or_create_domain_field(
+        self, key: str, module: str, data_type: str = "text"
+    ) -> DomainField:
+        """Crea el campo de dominio si no existe. Permite vocabulario extensible."""
+        result = await self._session.execute(select(DomainField).where(DomainField.key == key))
+        existing = result.scalar_one_or_none()
+        if existing:
+            return existing
+        field = DomainField(
+            key=key,
+            label=key.replace("_", " ").title(),
+            data_type=data_type,
+            module=module,
+            synonyms=[],
+        )
+        self._session.add(field)
+        await self._session.flush()
+        return field
+
+    async def get_available_fields_for_cert(
+        self, cert_id: uuid.UUID
+    ) -> list[dict] | None:
+        """Devuelve los campos disponibles según el mapeo confirmado de la certificación.
+
+        Retorna None si no hay base con mapeo confirmado.
+        Cada elemento: {key, label, data_type}.
+        """
+        result = await self._session.execute(
+            select(UserBase)
+            .where(UserBase.certification_id == cert_id, UserBase.mapping_id.is_not(None))
+            .order_by(UserBase.created_at.desc())
+        )
+        base = result.scalars().first()
+        if base is None or base.mapping is None:
+            return None
+
+        field_keys = [v for v in base.mapping.mapping.values() if v]
+        if not field_keys:
+            return None
+
+        stmt = select(DomainField).where(DomainField.key.in_(field_keys))
+        df_result = await self._session.execute(stmt)
+        fields = list(df_result.scalars().all())
+        return [{"key": f.key, "label": f.label, "data_type": f.data_type} for f in fields]
+
     # ── CaseConditions ────────────────────────────────────────────────────────
 
     async def upsert_conditions(

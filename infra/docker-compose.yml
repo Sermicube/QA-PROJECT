@@ -1,0 +1,87 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../frontend
+      target: production
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ../backend
+    env_file: ../.env
+    volumes:
+      - files:/data/files
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ../backend
+    env_file: ../.env
+    volumes:
+      - files:/data/files
+    depends_on:
+      - postgres
+      - redis
+    command: celery -A app.core.celery_app worker --loglevel=info
+    restart: unless-stopped
+
+  beat:
+    build:
+      context: ../backend
+    env_file: ../.env
+    depends_on:
+      - redis
+    command: celery -A app.core.celery_app beat --loglevel=info
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: copiloto
+      POSTGRES_USER: copiloto
+      POSTGRES_PASSWORD: copiloto
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U copiloto"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  files:
+  redis_data:
+  caddy_data:

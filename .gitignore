@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Environment
+.env
+
+# Data sensible
+data/
+uploads/
+
+# Excel — se permiten fixtures y templates
+*.xlsx
+!backend/tests/fixtures/*.xlsx
+!templates/**/*.xlsx
+
+# Node
+node_modules/
+.next/
+out/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp

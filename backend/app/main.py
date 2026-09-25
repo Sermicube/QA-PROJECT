@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from app.core.config import settings
 from app.core.logging import configure_logging
+from app.users.router import router as users_router
 
 
 @asynccontextmanager
@@ -24,6 +25,9 @@ app = FastAPI(
     redoc_url=None,
     lifespan=lifespan,
 )
+
+
+app.include_router(users_router)
 
 
 @app.get("/api/health")

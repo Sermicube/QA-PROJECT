@@ -11,6 +11,9 @@ import app.certifications.models  # noqa: F401 — registers Certification + Sta
 import app.context.models  # noqa: F401 — registers ContextSource, AcceptanceCriterion, Ambiguity
 import app.testcases.models  # noqa: F401 — registers TestCase, TestCaseCriterion
 import app.testdata.models  # noqa: F401 — registers DomainField, ColumnMapping, UserBase, etc.
+import app.evidence.models  # noqa: F401 — registers Evidence, Execution
+import app.deliverables.models  # noqa: F401 — registers Deliverable, Template
+import app.metrics.models  # noqa: F401 — registers ReworkEvent, BaselineCertification, LlmCall
 
 config = context.config
 

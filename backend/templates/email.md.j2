@@ -1,0 +1,20 @@
+**Asunto:** Certificación {{ cert.external_code }} — {{ cert.module }} — {{ 'Aprobada' if all_passed else 'Con observaciones' }}
+
+Cordial saludo,
+
+Se certifica el {{ cert.type }} **{{ cert.external_code }}** en el módulo **{{ cert.module }}**.
+
+**Casos ejecutados:** {{ cases | length }}
+**Resultado:** {% if all_passed %}APROBADO{% else %}CON OBSERVACIONES{% endif %}
+
+{% if not all_passed %}
+**Casos con falla o bloqueo:**
+{% for case in cases %}{% if case.result != 'passed' %}
+- {{ case.code }}: {{ case.observation | default('sin observación') }}
+{% endif %}{% endfor %}
+{% endif %}
+
+Adjunto el formato CO-FR-VRA-03 con el detalle completo.
+
+Atentamente,
+{{ analyst_name }}

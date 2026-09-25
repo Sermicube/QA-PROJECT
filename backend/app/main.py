@@ -10,6 +10,9 @@ from app.certifications.router import router as certifications_router
 from app.context.router import router as context_router
 from app.testcases.router import router as testcases_router
 from app.testdata.router import router as testdata_router
+from app.evidence.router import router as evidence_router
+from app.deliverables.router import router as deliverables_router
+from app.metrics.router import router as metrics_router
 from app.users.router import router as users_router
 
 
@@ -36,6 +39,9 @@ app.include_router(certifications_router)
 app.include_router(context_router)
 app.include_router(testcases_router)
 app.include_router(testdata_router)
+app.include_router(evidence_router)
+app.include_router(deliverables_router)
+app.include_router(metrics_router)
 
 
 @app.get("/api/health")

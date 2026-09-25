@@ -1,0 +1,21 @@
+fields:
+  requirement_code: {sheet: "Pruebas", cell: "C5"}
+  module: {sheet: "Pruebas", cell: "C6"}
+  analyst: {sheet: "Pruebas", cell: "C7"}
+  date: {sheet: "Pruebas", cell: "C8", format: "dd/mm/yyyy"}
+tables:
+  test_cases:
+    sheet: "Pruebas"
+    start_row: 12
+    columns:
+      code: "A"
+      name: "B"
+      steps: "C"
+      expected_result: "D"
+      result: "E"
+images:
+  evidence:
+    sheet: "Evidencias"
+    layout: "one_per_block"
+    start_cell: "A3"
+    caption_offset_rows: -1

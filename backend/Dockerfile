@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Instalar dependencias (capa cacheada)
 COPY pyproject.toml .
 RUN mkdir -p app && touch app/__init__.py \
-    && pip install --no-cache-dir . \
+    && pip install --no-cache-dir ".[dev]" \
     && rm -rf app
 
 # Copiar fuente e instalar el paquete sin reinstalar deps

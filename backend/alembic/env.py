@@ -10,6 +10,7 @@ import app.users.models  # noqa: F401 — registers User with Base.metadata
 import app.certifications.models  # noqa: F401 — registers Certification + StageEvent
 import app.context.models  # noqa: F401 — registers ContextSource, AcceptanceCriterion, Ambiguity
 import app.testcases.models  # noqa: F401 — registers TestCase, TestCaseCriterion
+import app.testdata.models  # noqa: F401 — registers DomainField, ColumnMapping, UserBase, etc.
 
 config = context.config
 

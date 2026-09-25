@@ -14,6 +14,7 @@ from app.evidence.router import router as evidence_router
 from app.deliverables.router import router as deliverables_router
 from app.metrics.router import router as metrics_router
 from app.users.router import router as users_router
+from app.core.tasks_router import router as tasks_router
 
 
 @asynccontextmanager
@@ -42,6 +43,7 @@ app.include_router(testdata_router)
 app.include_router(evidence_router)
 app.include_router(deliverables_router)
 app.include_router(metrics_router)
+app.include_router(tasks_router)
 
 
 @app.get("/api/health")

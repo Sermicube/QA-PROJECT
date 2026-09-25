@@ -1,0 +1,16 @@
+# Nota TFS — {{ cert.external_code }}
+
+**Módulo:** {{ cert.module }}
+**Tipo:** {{ cert.type | title }}
+**Fecha:** {{ today }}
+
+## Resumen
+{{ cert.title }}
+
+## Casos probados
+{% for case in cases %}
+- **{{ case.code }}** — {{ case.name }}: {{ case.result | default('pendiente') }}
+{% endfor %}
+
+## Resultado
+{% if all_passed %}Certificación aprobada.{% else %}Certificación con observaciones (ver detalle en CO-FR-VRA-03 adjunto).{% endif %}

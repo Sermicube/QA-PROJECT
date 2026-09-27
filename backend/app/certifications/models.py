@@ -34,7 +34,7 @@ class Certification(Base):
     module: Mapped[str] = mapped_column(String(100), nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
-    stage: Mapped[str] = mapped_column(String(30), nullable=False, default="requirement")
+    stage: Mapped[str] = mapped_column(String(30), nullable=False, default="context")
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")  # active | closed
     closed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(

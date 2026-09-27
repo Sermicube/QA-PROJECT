@@ -1,7 +1,8 @@
+import re
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class LoginRequest(BaseModel):
@@ -21,10 +22,18 @@ class UserRead(BaseModel):
 
 
 class UserCreate(BaseModel):
-    email: EmailStr
+    email: str
     full_name: str
     password: str
     role: str = "analyst"
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", v):
+            raise ValueError("Dirección de correo inválida")
+        return v
 
 
 class UserUpdate(BaseModel):

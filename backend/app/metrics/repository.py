@@ -98,6 +98,142 @@ class MetricsRepository:
         await self._s.flush()
         return call
 
+    # ── RF-53: advanced aggregations ─────────────────────────────────────────
+
+    async def by_type(self, owner_id: uuid.UUID) -> list[dict]:
+        from app.certifications.models import Certification
+        result = await self._s.execute(
+            select(Certification).where(
+                Certification.owner_id == owner_id,
+                Certification.stage == "closed",
+            )
+        )
+        certs = list(result.scalars().all())
+        groups: dict[str, list[float]] = {}
+        for c in certs:
+            if c.closed_at and c.created_at:
+                mins = (c.closed_at - c.created_at).total_seconds() / 60
+                groups.setdefault(c.type, []).append(mins)
+
+        rework_res = await self._s.execute(
+            select(ReworkEvent.certification_id, func.count(ReworkEvent.id))
+            .join(Certification, Certification.id == ReworkEvent.certification_id)
+            .where(Certification.owner_id == owner_id)
+            .group_by(ReworkEvent.certification_id)
+        )
+        cert_rework: dict[uuid.UUID, int] = {r[0]: r[1] for r in rework_res}
+
+        type_rework: dict[str, int] = {}
+        for c in certs:
+            type_rework[c.type] = type_rework.get(c.type, 0) + cert_rework.get(c.id, 0)
+
+        out = []
+        for t, durations in groups.items():
+            out.append({
+                "type": t,
+                "total": len(durations),
+                "avg_minutes": sum(durations) / len(durations) if durations else None,
+                "total_rework": type_rework.get(t, 0),
+            })
+        return sorted(out, key=lambda x: x["total"], reverse=True)
+
+    async def by_module(self, owner_id: uuid.UUID) -> list[dict]:
+        from app.certifications.models import Certification
+        result = await self._s.execute(
+            select(Certification).where(
+                Certification.owner_id == owner_id,
+                Certification.stage == "closed",
+            )
+        )
+        certs = list(result.scalars().all())
+        groups: dict[str, list[float]] = {}
+        rework_by_module: dict[str, int] = {}
+        for c in certs:
+            if c.closed_at and c.created_at:
+                mins = (c.closed_at - c.created_at).total_seconds() / 60
+                groups.setdefault(c.module, []).append(mins)
+
+        rework_res = await self._s.execute(
+            select(Certification.module, func.count(ReworkEvent.id))
+            .join(ReworkEvent, ReworkEvent.certification_id == Certification.id, isouter=True)
+            .where(Certification.owner_id == owner_id, Certification.stage == "closed")
+            .group_by(Certification.module)
+        )
+        rework_by_module = {r[0]: r[1] for r in rework_res}
+
+        out = []
+        for module, durations in groups.items():
+            out.append({
+                "module": module,
+                "total": len(durations),
+                "avg_minutes": sum(durations) / len(durations) if durations else None,
+                "total_rework": rework_by_module.get(module, 0),
+            })
+        return sorted(out, key=lambda x: (x["avg_minutes"] or 0), reverse=True)
+
+    async def baseline_comparison(self, owner_id: uuid.UUID) -> list[dict]:
+        from app.certifications.models import Certification
+        result = await self._s.execute(
+            select(Certification).where(
+                Certification.owner_id == owner_id,
+                Certification.stage == "closed",
+            )
+        )
+        certs = list(result.scalars().all())
+        tool_by_module: dict[str, list[float]] = {}
+        for c in certs:
+            if c.closed_at and c.created_at:
+                mins = (c.closed_at - c.created_at).total_seconds() / 60
+                tool_by_module.setdefault(c.module, []).append(mins)
+
+        baselines = await self.list_baselines(owner_id)
+        base_by_module: dict[str, list[int]] = {}
+        for b in baselines:
+            base_by_module.setdefault(b.module, []).append(b.duration_minutes)
+
+        all_modules = set(tool_by_module.keys()) | set(base_by_module.keys())
+        out = []
+        for module in sorted(all_modules):
+            tool_vals = tool_by_module.get(module, [])
+            base_vals = base_by_module.get(module, [])
+            tool_avg = sum(tool_vals) / len(tool_vals) if tool_vals else None
+            base_avg = sum(base_vals) / len(base_vals) if base_vals else None
+            if tool_avg is not None and base_avg is not None and base_avg > 0:
+                delta_pct = (tool_avg - base_avg) / base_avg * 100
+            else:
+                delta_pct = None
+            out.append({
+                "module": module,
+                "with_tool_avg": tool_avg,
+                "baseline_avg": base_avg,
+                "delta_pct": delta_pct,
+            })
+        return out
+
+    async def export_data(self, owner_id: uuid.UUID) -> list[dict]:
+        from app.certifications.models import Certification
+        result = await self._s.execute(
+            select(Certification).where(
+                Certification.owner_id == owner_id,
+                Certification.stage == "closed",
+            ).order_by(Certification.closed_at.desc())
+        )
+        certs = list(result.scalars().all())
+        rows = []
+        for c in certs:
+            total_mins: float | None = None
+            if c.closed_at and c.created_at:
+                total_mins = (c.closed_at - c.created_at).total_seconds() / 60
+            rows.append({
+                "external_code": c.external_code,
+                "title": c.title,
+                "type": c.type,
+                "module": c.module,
+                "closed_at": c.closed_at.isoformat() if c.closed_at else "",
+                "total_minutes": round(total_mins, 1) if total_mins is not None else None,
+            })
+        return rows
+
     # ── Summary ───────────────────────────────────────────────────────────────
 
     async def summary(self, owner_id: uuid.UUID) -> dict:

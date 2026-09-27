@@ -13,7 +13,9 @@ from app.certifications.schemas import (
 )
 from app.certifications.service import CertificationError, CertificationService
 from app.core.db import get_db
+from app.users.models import User
 from app.users.repository import UserRepository
+from app.users.router import get_current_user
 from app.users.service import AuthError, UserService
 
 router = APIRouter(prefix="/api/v1/certifications", tags=["certifications"])
@@ -55,11 +57,20 @@ async def list_certifications(
     module: Optional[str] = Query(default=None),
     stage: Optional[str] = Query(default=None),
     status_filter: Optional[str] = Query(default=None, alias="status"),
-    owner_id: uuid.UUID = Depends(_current_user_id),
-    service: CertificationService = Depends(_service),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
 ) -> list[CertificationRead]:
-    certs = await service.list(
-        owner_id, type=type, module=module, stage=stage, status=status_filter
+    repo = CertificationRepository(session)
+    if current_user.role in ("lead", "admin"):
+        pairs = await repo.list_all_with_analyst_email(
+            type=type, module=module, stage=stage, status=status_filter
+        )
+        return [
+            CertificationRead.model_validate(cert).model_copy(update={"analyst_email": email})
+            for cert, email in pairs
+        ]
+    certs = await repo.list_by_owner(
+        current_user.id, type=type, module=module, stage=stage, status=status_filter
     )
     return [CertificationRead.model_validate(c) for c in certs]
 

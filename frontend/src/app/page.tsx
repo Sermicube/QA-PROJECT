@@ -9,7 +9,7 @@ import type { Certification } from "@/lib/api/types";
 import { CertCard } from "@/components/CertCard";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
-import { LogOut, Plus } from "lucide-react";
+import { LogOut, Plus, ShieldCheck } from "lucide-react";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -53,6 +53,14 @@ export default function DashboardPage() {
             <Link href="/settings">
               <Button variant="ghost" size="sm">Configuración</Button>
             </Link>
+            {user.role === "admin" && (
+              <Link href="/admin">
+                <Button variant="ghost" size="sm">
+                  <ShieldCheck size={15} />
+                  Admin
+                </Button>
+              </Link>
+            )}
             <Button variant="ghost" size="sm" onClick={() => logout()}>
               <LogOut size={16} />
               Salir

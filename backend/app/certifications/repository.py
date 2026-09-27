@@ -68,6 +68,31 @@ class CertificationRepository:
         result = await self._session.execute(q)
         return list(result.scalars().all())
 
+    async def list_all_with_analyst_email(
+        self,
+        *,
+        type: Optional[str] = None,
+        module: Optional[str] = None,
+        stage: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> list[tuple["Certification", str]]:
+        from app.users.models import User
+        q = (
+            select(Certification, User.email)
+            .join(User, User.id == Certification.owner_id)
+        )
+        if type:
+            q = q.where(Certification.type == type)
+        if module:
+            q = q.where(Certification.module == module)
+        if stage:
+            q = q.where(Certification.stage == stage)
+        if status:
+            q = q.where(Certification.status == status)
+        q = q.order_by(Certification.created_at.desc())
+        result = await self._session.execute(q)
+        return [(row.Certification, row.email) for row in result]
+
     async def update_stage(
         self, cert: Certification, new_stage: str
     ) -> Certification:

@@ -48,6 +48,7 @@ class CertificationRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     stage_events: list[StageEventRead] = []
+    analyst_email: Optional[str] = None
 
 
 class StageChangeRequest(BaseModel):

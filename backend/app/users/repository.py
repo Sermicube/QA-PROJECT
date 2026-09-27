@@ -18,6 +18,18 @@ class UserRepository:
         result = await self._session.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
 
+    async def list_all(self) -> list[User]:
+        result = await self._session.execute(select(User).order_by(User.created_at.asc()))
+        return list(result.scalars().all())
+
+    async def update(self, user: User, **kwargs: object) -> User:
+        for key, value in kwargs.items():
+            if value is not None:
+                setattr(user, key, value)
+        await self._session.commit()
+        await self._session.refresh(user)
+        return user
+
     async def create(
         self,
         email: str,

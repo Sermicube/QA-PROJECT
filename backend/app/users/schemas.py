@@ -27,6 +27,11 @@ class UserCreate(BaseModel):
     role: str = "analyst"
 
 
+class UserUpdate(BaseModel):
+    role: str | None = None
+    is_active: bool | None = None
+
+
 class LlmConfigIn(BaseModel):
     provider: str        # anthropic | ollama | fake
     api_key: str         # en texto plano; se cifra antes de guardar

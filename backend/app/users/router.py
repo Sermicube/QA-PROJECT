@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,7 +8,7 @@ from app.core.db import get_db
 from app.core.security import clear_auth_cookie, set_auth_cookie
 from app.users.models import User, UserApiKey
 from app.users.repository import UserRepository
-from app.users.schemas import LlmConfigIn, LlmConfigOut, LoginRequest, UserRead
+from app.users.schemas import LlmConfigIn, LlmConfigOut, LoginRequest, UserCreate, UserRead, UserUpdate
 from app.users.service import AuthError, UserService
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -46,6 +48,70 @@ async def get_current_user(
         return await service.get_by_token(access_token)
     except AuthError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sesión inválida o expirada")
+
+
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso restringido a administradores")
+    return current_user
+
+
+# ── Admin endpoints ──────────────────────────────────────────────────────────
+
+admin_router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
+
+
+@admin_router.get("/users", response_model=list[UserRead])
+async def admin_list_users(
+    _admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_db),
+) -> list[UserRead]:
+    repo = UserRepository(session)
+    users = await repo.list_all()
+    return [UserRead.model_validate(u) for u in users]
+
+
+@admin_router.post("/users", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+async def admin_create_user(
+    body: UserCreate,
+    _admin: User = Depends(require_admin),
+    service: UserService = Depends(_service),
+) -> UserRead:
+    try:
+        user = await service.create_user(body)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    return UserRead.model_validate(user)
+
+
+@admin_router.patch("/users/{user_id}", response_model=UserRead)
+async def admin_update_user(
+    user_id: uuid.UUID,
+    body: UserUpdate,
+    _admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_db),
+) -> UserRead:
+    repo = UserRepository(session)
+    user = await repo.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if updates:
+        user = await repo.update(user, **updates)
+    return UserRead.model_validate(user)
+
+
+@admin_router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def admin_deactivate_user(
+    user_id: uuid.UUID,
+    _admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_db),
+) -> None:
+    repo = UserRepository(session)
+    user = await repo.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
+    await repo.update(user, is_active=False)
 
 
 @router.put("/me/llm-config", response_model=LlmConfigOut)

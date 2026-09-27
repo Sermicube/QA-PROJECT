@@ -58,3 +58,36 @@ class MetricsSummaryOut(BaseModel):
     total_rework: int
     overall_avg_minutes: float | None
     baseline_avg_minutes: float | None
+
+
+class TypeMetrics(BaseModel):
+    type: str
+    total: int
+    avg_minutes: float | None
+    total_rework: int
+
+
+class ByTypeOut(BaseModel):
+    items: list[TypeMetrics]
+
+
+class ModuleMetricsOut(BaseModel):
+    module: str
+    total: int
+    avg_minutes: float | None
+    total_rework: int
+
+
+class ByModuleOut(BaseModel):
+    items: list[ModuleMetricsOut]
+
+
+class BaselineComparisonItem(BaseModel):
+    module: str
+    with_tool_avg: float | None
+    baseline_avg: float | None
+    delta_pct: float | None
+
+
+class BaselineComparisonOut(BaseModel):
+    items: list[BaselineComparisonItem]

@@ -6,7 +6,16 @@ from datetime import date
 
 from app.metrics.models import BaselineCertification, ReworkEvent
 from app.metrics.repository import MetricsRepository
-from app.metrics.schemas import MetricsSummaryOut, ModuleMetrics
+from app.metrics.schemas import (
+    BaselineComparisonItem,
+    BaselineComparisonOut,
+    ByModuleOut,
+    ByTypeOut,
+    MetricsSummaryOut,
+    ModuleMetrics,
+    ModuleMetricsOut,
+    TypeMetrics,
+)
 
 
 class MetricsService:
@@ -39,6 +48,21 @@ class MetricsService:
 
     async def list_baselines(self, owner_id: uuid.UUID) -> list[BaselineCertification]:
         return await self._repo.list_baselines(owner_id)
+
+    async def by_type(self, owner_id: uuid.UUID) -> ByTypeOut:
+        items = await self._repo.by_type(owner_id)
+        return ByTypeOut(items=[TypeMetrics(**i) for i in items])
+
+    async def by_module(self, owner_id: uuid.UUID) -> ByModuleOut:
+        items = await self._repo.by_module(owner_id)
+        return ByModuleOut(items=[ModuleMetricsOut(**i) for i in items])
+
+    async def baseline_comparison(self, owner_id: uuid.UUID) -> BaselineComparisonOut:
+        items = await self._repo.baseline_comparison(owner_id)
+        return BaselineComparisonOut(items=[BaselineComparisonItem(**i) for i in items])
+
+    async def export_data(self, owner_id: uuid.UUID) -> list[dict]:
+        return await self._repo.export_data(owner_id)
 
     async def summary(self, owner_id: uuid.UUID) -> MetricsSummaryOut:
         data = await self._repo.summary(owner_id)

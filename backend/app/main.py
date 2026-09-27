@@ -13,7 +13,7 @@ from app.testdata.router import router as testdata_router
 from app.evidence.router import router as evidence_router
 from app.deliverables.router import router as deliverables_router
 from app.metrics.router import router as metrics_router
-from app.users.router import router as users_router
+from app.users.router import router as users_router, admin_router
 from app.core.tasks_router import router as tasks_router
 from app.knowledge.router import router as knowledge_router
 from app.core.neo4j_client import close_driver, get_driver
@@ -43,6 +43,7 @@ app = FastAPI(
 
 
 app.include_router(users_router)
+app.include_router(admin_router)
 app.include_router(certifications_router)
 app.include_router(context_router)
 app.include_router(testcases_router)

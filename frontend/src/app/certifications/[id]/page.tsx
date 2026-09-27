@@ -124,7 +124,7 @@ export default function CertificationPage() {
 
         {/* Stage content */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          {activeStage === "context" && <ContextStage cert={cert} />}
+          {activeStage === "context" && <ContextStage cert={cert} onNavigate={setStage} />}
           {activeStage === "ambiguities" && <AmbiguitiesStage cert={cert} />}
           {activeStage === "testcases" && <TestCasesStage cert={cert} />}
           {activeStage === "testdata" && <TestDataStage cert={cert} />}

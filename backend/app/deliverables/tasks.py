@@ -98,35 +98,55 @@ async def _generate(cert_id_str: str, user_id_str: str | None = None) -> dict:
         # ── CO-FR-VRA-03 (RF-40) ─────────────────────────────────────────────
         excel_path_str: str | None = None
         try:
+            import datetime as _dt
+            from app.deliverables.domain.excel_filler import fill_co_fr_vra_03
+
+            # Buscar plantilla: primero en BD, luego en /app/templates/
             template = await repo.get_template("co_fr_vra_03")
+            tpl_path: Path | None = None
             if template and Path(template.file_path).exists():
-                from app.deliverables.domain.excel_filler import fill_template
-                import yaml as _yaml
+                tpl_path = Path(template.file_path)
+            else:
+                builtin = Path("/app/templates/CO-FR-VRA-03.xlsx")
+                if builtin.exists():
+                    tpl_path = builtin
 
-                mapping_path = Path(template.file_path).parent / "mapping.yaml"
-                if not mapping_path.exists():
-                    import tempfile, json
-                    mapping_path = Path(tempfile.mktemp(suffix=".yaml"))
-                    mapping_path.write_text(_yaml.dump(template.mapping), encoding="utf-8")
+            if tpl_path:
+                # Enriquecer casos con datos de evidencia
+                for cd in cases_data:
+                    tc_obj = next((t for t in test_cases if t.code == cd["code"]), None)
+                    if tc_obj:
+                        ev_res = await session.execute(
+                            select(Evidence).where(
+                                Evidence.test_case_id == tc_obj.id,
+                                Evidence.ocr_status.in_(["valid", "warning"]),
+                            )
+                        )
+                        ev_list = list(ev_res.scalars().all())
+                        if ev_list:
+                            cd["evidence_description"] = ev_list[0].description or ""
 
+                today = _dt.date.today()
                 excel_out = output_dir / f"CO-FR-VRA-03_{cert.external_code}.xlsx"
-                fill_template(
-                    template_path=template.file_path,
-                    mapping_path=str(mapping_path),
-                    data={
-                        "requirement_code": cert.external_code,
-                        "module": cert.module,
-                        "analyst": analyst_name,
-                        "date": __import__("datetime").date.today().strftime("%d/%m/%Y"),
-                        "test_cases": cases_data,
-                    },
-                    output_path=str(excel_out),
+                fill_co_fr_vra_03(
+                    template_path=tpl_path,
+                    output_path=excel_out,
+                    title=cert.title,
+                    external_code=cert.external_code,
+                    module=cert.module,
+                    cert_type=cert.type,
+                    description=cert.description or "",
+                    analyst_name=analyst_name,
+                    start_date=today,
+                    end_date=today,
+                    test_cases=cases_data,
                 )
                 excel_path_str = str(excel_out)
                 await repo.upsert(cert_id, "co_fr_vra_03", file_path=excel_path_str)
                 generated_files.append({"path": excel_path_str, "arcname": excel_out.name})
-        except Exception:
-            pass  # plantilla no disponible en dev — no bloquear
+        except Exception as _exc:
+            import logging
+            logging.getLogger(__name__).warning("CO-FR-VRA-03 generation failed: %s", _exc)
 
         # ── Evidencias válidas ────────────────────────────────────────────────
         for tc in test_cases:

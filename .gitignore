@@ -21,6 +21,7 @@ uploads/
 *.xlsx
 !backend/tests/fixtures/*.xlsx
 !templates/**/*.xlsx
+!backend/templates/*.xlsx
 
 # Node
 node_modules/

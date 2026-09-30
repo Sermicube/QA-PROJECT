@@ -78,9 +78,11 @@ async def list_certifications(
 @router.get("/{cert_id}", response_model=CertificationRead)
 async def get_certification(
     cert_id: uuid.UUID,
-    owner_id: uuid.UUID = Depends(_current_user_id),
+    current_user: User = Depends(get_current_user),
     service: CertificationService = Depends(_service),
 ) -> CertificationRead:
+    # Admin y lead pueden ver cualquier certificación
+    owner_id = None if current_user.role in ("admin", "lead") else current_user.id
     try:
         cert = await service.get(cert_id, owner_id)
     except CertificationError:
@@ -92,9 +94,10 @@ async def get_certification(
 async def update_certification(
     cert_id: uuid.UUID,
     body: CertificationUpdate,
-    owner_id: uuid.UUID = Depends(_current_user_id),
+    current_user: User = Depends(get_current_user),
     service: CertificationService = Depends(_service),
 ) -> CertificationRead:
+    owner_id = None if current_user.role in ("admin", "lead") else current_user.id
     try:
         cert = await service.update(cert_id, owner_id, body)
     except CertificationError:
@@ -106,15 +109,15 @@ async def update_certification(
 async def change_stage(
     cert_id: uuid.UUID,
     body: StageChangeRequest,
-    owner_id: uuid.UUID = Depends(_current_user_id),
+    current_user: User = Depends(get_current_user),
     service: CertificationService = Depends(_service),
 ) -> CertificationRead:
+    owner_id = None if current_user.role in ("admin", "lead") else current_user.id
     try:
         cert = await service.change_stage(cert_id, owner_id, body.direction)
     except CertificationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
-    # RF-60: al cerrar, ingestar al Mapa Vivo en background
     if cert.stage == "closed":
         from app.knowledge.tasks import ingest_certification as knowledge_task
-        knowledge_task.delay(str(cert_id), str(owner_id))
+        knowledge_task.delay(str(cert_id), str(current_user.id))
     return CertificationRead.model_validate(cert)

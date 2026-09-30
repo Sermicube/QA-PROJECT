@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     ANTHROPIC_MODEL: str = "claude-sonnet-4-6"
     OLLAMA_BASE_URL: str = "http://ollama:11434"
     OLLAMA_MODEL: str = ""
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480  # 8 horas
     RETENTION_DAYS: int = 30
     MAX_UPLOAD_MB: int = 20
     NEO4J_URI: str = "bolt://neo4j:7687"

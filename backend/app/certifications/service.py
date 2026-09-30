@@ -27,7 +27,7 @@ class CertificationService:
         )
 
     async def get(
-        self, cert_id: uuid.UUID, owner_id: uuid.UUID
+        self, cert_id: uuid.UUID, owner_id: uuid.UUID | None
     ) -> Certification:
         cert = await self._repo.get_by_id(cert_id, owner_id=owner_id)
         if cert is None:
@@ -48,7 +48,7 @@ class CertificationService:
         )
 
     async def update(
-        self, cert_id: uuid.UUID, owner_id: uuid.UUID, data: CertificationUpdate
+        self, cert_id: uuid.UUID, owner_id: uuid.UUID | None, data: CertificationUpdate
     ) -> Certification:
         cert = await self.get(cert_id, owner_id)
         updates = {k: v for k, v in data.model_dump().items() if v is not None}
@@ -57,7 +57,7 @@ class CertificationService:
         return await self._repo.update_fields(cert, **updates)
 
     async def change_stage(
-        self, cert_id: uuid.UUID, owner_id: uuid.UUID, direction: str
+        self, cert_id: uuid.UUID, owner_id: uuid.UUID | None, direction: str
     ) -> Certification:
         cert = await self.get(cert_id, owner_id)
         if cert.status == "closed":

@@ -20,6 +20,7 @@ class TestCaseRepository:
         steps: list,
         expected_result: str,
         boundary: Optional[str] = None,
+        flags: Optional[dict] = None,
         order: int = 0,
     ) -> TestCase:
         tc = TestCase(
@@ -30,6 +31,7 @@ class TestCaseRepository:
             steps=steps,
             expected_result=expected_result,
             boundary=boundary,
+            flags=flags or {},
             order=order,
         )
         self._s.add(tc)

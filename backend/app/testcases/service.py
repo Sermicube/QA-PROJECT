@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
+from typing import Any, Optional
 
 from app.context.repository import ContextRepository
 from app.testcases.domain.linter import CaseInput, LintIssue, lint_batch, lint_case
@@ -31,6 +31,7 @@ class TestCaseService:
         expected_result: str,
         criteria_ids: list[str],
         boundary: Optional[str] = None,
+        flags: Optional[dict] = None,
         order: int = 0,
     ) -> TestCase:
         code = await self._repo.next_code(certification_id)
@@ -42,6 +43,7 @@ class TestCaseService:
             steps=steps,
             expected_result=expected_result,
             boundary=boundary,
+            flags=flags or {},
             order=order,
         )
         # Resolver criterion_ids (string CA-XX) a UUIDs
@@ -114,14 +116,7 @@ class TestCaseService:
 
     async def approve(self, test_case_id: uuid.UUID, certification_id: uuid.UUID) -> TestCase:
         tc = await self.get(test_case_id, certification_id)
-        # Correr linter antes de aprobar
-        case_input = await self._to_input(tc, certification_id)
-        issues = lint_case(case_input)
-        errors = [i for i in issues if i.severity == "error"]
-        if errors:
-            raise TestCaseError(
-                f"El caso tiene {len(errors)} error(es) de linter. Corrígelos antes de aprobar."
-            )
+        # S01-S08 son avisos de estilo; no bloquean la aprobación.
         return await self._repo.update(tc, status="approved")
 
     # ── Matriz de trazabilidad (RF-19) ────────────────────────────────────────
@@ -163,6 +158,7 @@ class TestCaseService:
                 expected_result=data["expected_result"],
                 criteria_ids=data.get("criteria_ids", []),
                 boundary=data.get("boundary"),
+                flags=data.get("flags", {}),
                 order=data.get("order", 0),
             )
             result.append(tc)

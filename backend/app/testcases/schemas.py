@@ -18,6 +18,7 @@ class TestCaseCreate(BaseModel):
     steps: list[str] = Field(default_factory=list)
     expected_result: str = Field(..., min_length=5)
     boundary: Optional[str] = None
+    flags: dict = Field(default_factory=dict)
     order: int = 0
 
 
@@ -28,6 +29,7 @@ class TestCaseUpdate(BaseModel):
     expected_result: Optional[str] = None
     boundary: Optional[str] = None
     criteria_ids: Optional[list[str]] = None
+    flags: Optional[dict] = None
     order: Optional[int] = None
 
 
@@ -43,6 +45,7 @@ class TestCaseOut(BaseModel):
     status: str
     lint_results: Optional[list[LintIssueOut]]
     criteria_ids: list[str] = Field(default_factory=list)
+    flags: dict = Field(default_factory=dict)
     order: int
     created_at: datetime
     updated_at: datetime

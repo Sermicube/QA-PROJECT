@@ -32,6 +32,7 @@ Ignora completamente lo siguiente — no generes criterios a partir de ello:
 6. Código de criterio: CA-01, CA-02… en orden.
 7. Texto en español. No incluyas datos personales (cédulas, nombres, contratos).
 8. Genera solo los criterios que el texto justifica — no inventes escenarios que no están descritos.
+9. **Máximo 5 criterios.** Si dos criterios verifican el mismo comportamiento con palabras distintas, combínalos en uno. No generes criterios redundantes ni sub-criterios de un mismo comportamiento observable.
 
 ## Salida (JSON)
 

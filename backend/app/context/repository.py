@@ -145,6 +145,7 @@ class ContextRepository:
             obj = Ambiguity(
                 certification_id=certification_id,
                 type=a["type"],
+                category=a.get("category", "other"),
                 fragment=a["fragment"],
                 location=a["location"],
                 explanation=a["explanation"],

@@ -12,7 +12,14 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
-    const detail = await res.json().catch(() => res.statusText);
+    const raw = await res.json().catch(() => res.statusText);
+    // FastAPI wraps error messages as { detail: string | object }; unwrap for readable messages.
+    const detail =
+      raw !== null &&
+      typeof raw === "object" &&
+      "detail" in (raw as Record<string, unknown>)
+        ? (raw as Record<string, unknown>).detail
+        : raw;
     throw new ApiError(res.status, detail);
   }
   if (res.status === 204) return undefined as T;
@@ -26,7 +33,14 @@ export async function uploadFile<T>(path: string, formData: FormData): Promise<T
     body: formData,
   });
   if (!res.ok) {
-    const detail = await res.json().catch(() => res.statusText);
+    const raw = await res.json().catch(() => res.statusText);
+    // FastAPI wraps error messages as { detail: string | object }; unwrap for readable messages.
+    const detail =
+      raw !== null &&
+      typeof raw === "object" &&
+      "detail" in (raw as Record<string, unknown>)
+        ? (raw as Record<string, unknown>).detail
+        : raw;
     throw new ApiError(res.status, detail);
   }
   return res.json();

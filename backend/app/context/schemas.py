@@ -26,6 +26,7 @@ class BrechaDescriptionContent(BaseModel):
 
 
 class DescriptionIn(BaseModel):
+    cert_type: Optional[str] = None   # "bug" | "brecha" — inferred from cert when missing
     content: dict[str, Any]  # BugDescriptionContent o BrechaDescriptionContent
 
 
@@ -82,6 +83,7 @@ class AmbiguityOut(BaseModel):
     id: uuid.UUID
     certification_id: uuid.UUID
     type: str
+    category: str = "other"
     fragment: str
     location: str
     explanation: str
@@ -103,3 +105,14 @@ class AmbiguityResolve(BaseModel):
 
 class AnalyzeOut(BaseModel):
     task_id: str
+
+
+# ── Propuesta de descripción estructurada (RF-11) ────────────────────────────
+
+class ProposeDescriptionIn(BaseModel):
+    free_text: str = Field(..., min_length=20)
+    cert_type: str  # "bug" | "brecha"
+
+
+class ProposeDescriptionOut(BaseModel):
+    proposed: dict[str, str]

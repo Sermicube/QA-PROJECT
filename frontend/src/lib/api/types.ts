@@ -1,56 +1,65 @@
-export type CertStage = "context" | "ambiguities" | "testcases" | "testdata" | "execution" | "deliverables" | "closed";
+/**
+ * Tipos del API — se derivan de generated.ts (openapi-typescript desde el backend).
+ * Ejecutar `npm run check` para regenerar y compilar; una diferencia de forma falla en tsc.
+ */
+import type { components } from "./generated";
+
+// ── Tipos auxiliares frontend ─────────────────────────────────────────────────
+
+export type CertStage =
+  | "context" | "testcases" | "format" | "data_request" | "assignment"
+  | "execution" | "analysis" | "documentation" | "review" | "closed";
+export type StageMode = "required" | "optional" | "not_applicable";
 export type CertType = "bug" | "brecha";
 export type CertStatus = "active" | "closed";
 
-export interface User {
-  id: string;
-  email: string;
-  full_name: string;
-  role: string;
-  module?: string;
-}
+export type ActiveStages = Record<CertStage, StageMode>;
 
-export interface Certification {
-  id: string;
-  owner_id: string;
+// ── Re-exportaciones de los esquemas del backend ──────────────────────────────
+// Cuando se ejecuta generate-types el archivo generated.ts se regenera desde el OpenAPI del
+// backend y tsc detecta automáticamente cualquier diferencia de forma.
+
+export type Recipe = Omit<components["schemas"]["RecipeRead"], "stages"> & {
+  stages: ActiveStages;
+};
+
+export type User = components["schemas"]["UserRead"];
+
+export type StageEvent = components["schemas"]["StageEventRead"];
+
+export type Certification = Omit<
+  components["schemas"]["CertificationRead"],
+  "type" | "stage" | "active_stages" | "stage_events"
+> & {
   type: CertType;
-  external_code: string;
-  module: string;
-  title: string;
-  description: string | null;
   stage: CertStage;
-  status: string;
-  closed_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
+  active_stages: ActiveStages | null;
+  stage_events: StageEvent[];
+};
 
-export interface ContextSource {
-  id: string;
-  certification_id: string;
-  kind: "analyst_description" | "requirement_document" | "incident_report";
-  content: Record<string, unknown> | null;
-  extracted_text: string | null;
-  sections: Array<{ title: string; content: string }> | null;
-  file_name: string | null;
-}
+export type CompletenessFinding = components["schemas"]["CompletenessFindingOut"];
 
-export interface Criterion {
-  id: string;
-  code: string;
-  text: string;
-  source_kind: string;
-}
+export type ContextSection = components["schemas"]["SectionOut"];
 
-export interface Ambiguity {
-  id: string;
-  type: string;
-  fragment: string;
-  location: string;
-  explanation: string;
-  question: string;
-  resolution: string | null;
-  resolved_by: string | null;
+export type ContextSource = Omit<
+  components["schemas"]["ContextSourceOut"],
+  "kind" | "sections" | "completeness_findings"
+> & {
+  kind: "analyst_description" | "requirement_document" | "incident_report" | "analysis_summary";
+  sections: ContextSection[] | null;
+  completeness_findings: CompletenessFinding[];
+};
+
+export type Criterion = components["schemas"]["CriterionOut"];
+
+export type Ambiguity = components["schemas"]["AmbiguityOut"] & { category: string };
+
+export interface TestCaseFlags {
+  pending_assumption?: boolean;
+  assumption_note?: string | null;
+  is_suggestion?: boolean;
+  requires_db_verification?: boolean;
+  db_verification_note?: string | null;
 }
 
 export interface TestCase {
@@ -64,6 +73,7 @@ export interface TestCase {
   status: "draft" | "approved";
   lint_results: Record<string, unknown> | null;
   criteria_ids: string[];
+  flags: TestCaseFlags;
   order: number;
 }
 

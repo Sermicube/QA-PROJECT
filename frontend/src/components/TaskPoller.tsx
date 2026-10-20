@@ -24,7 +24,11 @@ export function TaskPoller({ taskId, onSuccess, onFailure, label = "Procesando..
 
   useEffect(() => {
     if (data?.status === "success" && onSuccess) onSuccess(data.result ?? {});
-    if (data?.status === "failure" && onFailure) onFailure(JSON.stringify(data.result));
+    if (data?.status === "failure" && onFailure) {
+      const r = data.result as Record<string, unknown> | null;
+      const msg = (r?.error as string) ?? JSON.stringify(r) ?? "Error desconocido";
+      onFailure(msg);
+    }
   }, [data?.status]);
 
   if (data?.status === "success" || data?.status === "failure") return null;

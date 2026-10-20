@@ -29,6 +29,8 @@ class TestCase(Base):
     # draft | approved
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
     lint_results: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    # pending_assumption, is_suggestion, requires_db_verification, assumption_note
+    flags: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
     order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

@@ -17,6 +17,8 @@ from app.users.router import router as users_router, admin_router
 from app.core.tasks_router import router as tasks_router
 from app.knowledge.router import router as knowledge_router
 from app.core.neo4j_client import close_driver, get_driver
+from app.recipes.router import router as recipes_router
+from app.recipes.service import seed_all as seed_recipes
 
 
 @asynccontextmanager
@@ -28,6 +30,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.neo4j = get_driver()
     if app.state.neo4j is not None:
         log.info("neo4j_connected", uri=settings.NEO4J_URI)
+    # Seed builtin recipes, case_styles, patterns and inconclusive_reasons (idempotent)
+    from app.core.db import AsyncSessionLocal
+    async with AsyncSessionLocal() as session:
+        await seed_recipes(session)
+    # Verify spaCy NER model (§6.2 — second PII layer; non-fatal if missing)
+    from app.llm.pii_guard import ner_available
+    if ner_available():
+        log.info("pii_guard_ner_ready", model="es_core_news_md")
+    else:
+        log.warning(
+            "pii_guard_ner_disabled",
+            model="es_core_news_md",
+            action="Person names may reach the LLM. "
+                   "Run: python -m spacy download es_core_news_md",
+        )
     yield
     await close_driver()
     log.info("shutdown")
@@ -53,6 +70,7 @@ app.include_router(deliverables_router)
 app.include_router(metrics_router)
 app.include_router(tasks_router)
 app.include_router(knowledge_router)
+app.include_router(recipes_router)
 
 
 @app.get("/api/health")

@@ -1,3 +1,4 @@
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import Connection, create_engine, pool
@@ -14,12 +15,14 @@ import app.testdata.models  # noqa: F401 — registers DomainField, ColumnMappin
 import app.evidence.models  # noqa: F401 — registers Evidence, Execution
 import app.deliverables.models  # noqa: F401 — registers Deliverable, Template
 import app.metrics.models  # noqa: F401 — registers ReworkEvent, BaselineCertification, LlmCall
+import app.recipes.models  # noqa: F401 — registers Recipe, CaseStyle, CasePattern, InconclusiveReason
 
 config = context.config
 
-# Para migraciones usamos psycopg2 (síncrono) en lugar de asyncpg.
-# Reemplazar el driver en la URL: asyncpg → psycopg2
-_migration_url = settings.DATABASE_URL.replace(
+# ALEMBIC_DATABASE_URL lets you override the URL when running from the host
+# (where Docker hostnames like 'postgres' are not resolvable).
+# Falls back to settings.DATABASE_URL with asyncpg→psycopg2 substitution.
+_migration_url = os.environ.get("ALEMBIC_DATABASE_URL") or settings.DATABASE_URL.replace(
     "postgresql+asyncpg://", "postgresql+psycopg2://"
 )
 config.set_main_option("sqlalchemy.url", _migration_url)

@@ -14,6 +14,8 @@ from app.context.schemas import (
     CriterionOut,
     DescriptionIn,
     IncidentReportIn,
+    ProposeDescriptionIn,
+    ProposeDescriptionOut,
 )
 from app.context.service import ContextError, ContextService
 from app.core.config import settings
@@ -57,7 +59,7 @@ async def save_description(
     svc: ContextService = Depends(_svc),
 ) -> ContextSourceOut:
     try:
-        source = await svc.save_description(cert_id, user.role, body.content)
+        source = await svc.save_description(cert_id, body.cert_type or "bug", body.content)
     except ContextError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return ContextSourceOut.model_validate(source)
@@ -156,6 +158,12 @@ async def analyze_context(
     current_user: User = Depends(get_current_user),
     svc: ContextService = Depends(_svc),
 ) -> AnalyzeOut:
+    sources = await svc.get_sources(cert_id)
+    if not sources:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El contexto está vacío. Guarda al menos una descripción antes de analizar.",
+        )
     # Primero correr análisis local (rápido, sin LLM)
     await svc.run_local_ambiguity_scan(cert_id)
     # Lanzar tarea Celery para análisis LLM
@@ -184,6 +192,25 @@ async def list_ambiguities(
     svc: ContextService = Depends(_svc),
 ) -> list[AmbiguityOut]:
     return [AmbiguityOut.model_validate(a) for a in await svc.get_ambiguities(cert_id)]
+
+
+@router.post(
+    "/certifications/{cert_id}/context/propose-description",
+    response_model=ProposeDescriptionOut,
+)
+async def propose_description(
+    cert_id: uuid.UUID,
+    body: ProposeDescriptionIn,
+    current_user: User = Depends(get_current_user),
+    svc: ContextService = Depends(_svc),
+) -> ProposeDescriptionOut:
+    try:
+        proposed = await svc.propose_description(
+            body.free_text, body.cert_type, str(current_user.id)
+        )
+    except ContextError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return ProposeDescriptionOut(proposed=proposed)
 
 
 @router.patch("/ambiguities/{amb_id}", response_model=AmbiguityOut)

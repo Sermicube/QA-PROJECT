@@ -39,12 +39,44 @@ def test_expired_token_raises() -> None:
         decode_token(token)
 
 
-def test_set_auth_cookie_flags() -> None:
+def test_set_auth_cookie_flags_dev(monkeypatch: pytest.MonkeyPatch) -> None:
+    """En desarrollo Secure=False y SameSite=lax para permitir HTTP local."""
+    from app.core import security as sec_mod
+    from app.core.config import Settings
+
+    dev_settings = Settings(APP_ENV="development")
+    monkeypatch.setattr(sec_mod, "settings", dev_settings)
+
     app = FastAPI()
 
     @app.get("/test-cookie")
     async def endpoint(response: Response) -> dict[str, str]:
-        set_auth_cookie(response, "tok")
+        sec_mod.set_auth_cookie(response, "tok")
+        return {}
+
+    with TestClient(app) as client:
+        resp = client.get("/test-cookie")
+
+    sc = resp.headers.get("set-cookie", "")
+    assert "access_token=tok" in sc
+    assert "HttpOnly" in sc
+    assert "Secure" not in sc
+    assert "SameSite=lax" in sc
+
+
+def test_set_auth_cookie_flags_prod(monkeypatch: pytest.MonkeyPatch) -> None:
+    """En producción Secure=True y SameSite=lax."""
+    from app.core import security as sec_mod
+    from app.core.config import Settings
+
+    prod_settings = Settings(APP_ENV="production")
+    monkeypatch.setattr(sec_mod, "settings", prod_settings)
+
+    app = FastAPI()
+
+    @app.get("/test-cookie")
+    async def endpoint(response: Response) -> dict[str, str]:
+        sec_mod.set_auth_cookie(response, "tok")
         return {}
 
     with TestClient(app) as client:
@@ -54,7 +86,7 @@ def test_set_auth_cookie_flags() -> None:
     assert "access_token=tok" in sc
     assert "HttpOnly" in sc
     assert "Secure" in sc
-    assert "SameSite=strict" in sc
+    assert "SameSite=lax" in sc
 
 
 def test_clear_auth_cookie() -> None:

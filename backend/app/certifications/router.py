@@ -9,10 +9,12 @@ from app.certifications.schemas import (
     CertificationCreate,
     CertificationRead,
     CertificationUpdate,
+    StageAddRequest,
     StageChangeRequest,
 )
 from app.certifications.service import CertificationError, CertificationService
 from app.core.db import get_db
+from app.recipes.repository import RecipeRepository
 from app.users.models import User
 from app.users.repository import UserRepository
 from app.users.router import get_current_user
@@ -35,7 +37,7 @@ async def _current_user_id(
 
 
 def _service(session: AsyncSession = Depends(get_db)) -> CertificationService:
-    return CertificationService(CertificationRepository(session))
+    return CertificationService(CertificationRepository(session), RecipeRepository(session))
 
 
 @router.post("", response_model=CertificationRead, status_code=status.HTTP_201_CREATED)
@@ -57,20 +59,22 @@ async def list_certifications(
     module: Optional[str] = Query(default=None),
     stage: Optional[str] = Query(default=None),
     status_filter: Optional[str] = Query(default=None, alias="status"),
+    recipe_code: Optional[str] = Query(default=None),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> list[CertificationRead]:
     repo = CertificationRepository(session)
     if current_user.role in ("lead", "admin"):
         pairs = await repo.list_all_with_analyst_email(
-            type=type, module=module, stage=stage, status=status_filter
+            type=type, module=module, stage=stage, status=status_filter, recipe_code=recipe_code
         )
         return [
             CertificationRead.model_validate(cert).model_copy(update={"analyst_email": email})
             for cert, email in pairs
         ]
     certs = await repo.list_by_owner(
-        current_user.id, type=type, module=module, stage=stage, status=status_filter
+        current_user.id, type=type, module=module, stage=stage,
+        status=status_filter, recipe_code=recipe_code
     )
     return [CertificationRead.model_validate(c) for c in certs]
 
@@ -81,7 +85,6 @@ async def get_certification(
     current_user: User = Depends(get_current_user),
     service: CertificationService = Depends(_service),
 ) -> CertificationRead:
-    # Admin y lead pueden ver cualquier certificación
     owner_id = None if current_user.role in ("admin", "lead") else current_user.id
     try:
         cert = await service.get(cert_id, owner_id)
@@ -120,4 +123,34 @@ async def change_stage(
     if cert.stage == "closed":
         from app.knowledge.tasks import ingest_certification as knowledge_task
         knowledge_task.delay(str(cert_id), str(current_user.id))
+    return CertificationRead.model_validate(cert)
+
+
+@router.post("/{cert_id}/stages/add", response_model=CertificationRead)
+async def add_stage(
+    cert_id: uuid.UUID,
+    body: StageAddRequest,
+    current_user: User = Depends(get_current_user),
+    service: CertificationService = Depends(_service),
+) -> CertificationRead:
+    owner_id = None if current_user.role in ("admin", "lead") else current_user.id
+    try:
+        cert = await service.add_stage(cert_id, owner_id, body.stage)
+    except CertificationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    return CertificationRead.model_validate(cert)
+
+
+@router.delete("/{cert_id}/stages/{stage}", response_model=CertificationRead)
+async def remove_stage(
+    cert_id: uuid.UUID,
+    stage: str,
+    current_user: User = Depends(get_current_user),
+    service: CertificationService = Depends(_service),
+) -> CertificationRead:
+    owner_id = None if current_user.role in ("admin", "lead") else current_user.id
+    try:
+        cert = await service.remove_stage(cert_id, owner_id, stage)
+    except CertificationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     return CertificationRead.model_validate(cert)

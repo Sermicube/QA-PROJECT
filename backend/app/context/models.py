@@ -93,8 +93,10 @@ class Ambiguity(Base):
         nullable=False, index=True,
     )
     # boundary_undefined | implicit_unit | missing_branch | contradiction
-    # vague_term | undefined_result | incomplete_context
+    # vague_term | undefined_result | incomplete_context | implicit_assumption
     type: Mapped[str] = mapped_column(String(30), nullable=False)
+    # changes_cases | execution_data | other
+    category: Mapped[str] = mapped_column(String(20), nullable=False, server_default="other")
     fragment: Mapped[str] = mapped_column(Text, nullable=False)
     location: Mapped[str] = mapped_column(String(200), nullable=False)
     explanation: Mapped[str] = mapped_column(Text, nullable=False)

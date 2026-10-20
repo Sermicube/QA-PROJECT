@@ -3,19 +3,22 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import DateTime, ForeignKey, String, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 
-# Orden canónico de etapas (RF-02)
+# Canonical order of all possible stages (RF-01b)
 STAGE_ORDER: list[str] = [
     "context",
-    "ambiguities",
     "testcases",
-    "testdata",
+    "format",
+    "data_request",
+    "assignment",
     "execution",
-    "deliverables",
+    "analysis",
+    "documentation",
+    "review",
     "closed",
 ]
 
@@ -29,13 +32,26 @@ class Certification(Base):
     owner_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    type: Mapped[str] = mapped_column(String(20), nullable=False)          # bug | brecha
+    type: Mapped[str] = mapped_column(String(20), nullable=False)           # bug | brecha
     external_code: Mapped[str] = mapped_column(String(100), nullable=False)
     module: Mapped[str] = mapped_column(String(100), nullable=False)
+    service: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+
+    # Recipe-based adaptable flow (RF-01c)
+    recipe_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
+    # Copy of recipe.stages at creation time; analyst may edit (RF-01d)
+    active_stages: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+
+    # Defaults copied from recipe
+    case_style: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    evidence_style: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    execution_channel: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    data_origin: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+
     stage: Mapped[str] = mapped_column(String(30), nullable=False, default="context")
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")  # active | closed
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
     closed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -65,6 +81,10 @@ class StageEvent(Base):
         index=True,
     )
     stage: Mapped[str] = mapped_column(String(30), nullable=False)
+    # executed | skipped | stage_added | stage_removed
+    status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    # recipe | analyst
+    source: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
